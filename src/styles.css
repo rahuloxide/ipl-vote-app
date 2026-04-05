@@ -85,6 +85,17 @@ button {
   font-size: 1rem;
 }
 
+.superadmin-badge {
+  display: inline-flex;
+  margin: 14px 0 0;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .login-card,
 .loading-card {
   margin-top: 28px;
@@ -167,7 +178,7 @@ button {
 
 .dashboard-summary {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -189,6 +200,127 @@ button {
 
 .summary-value {
   margin: 8px 0 0;
+  font-weight: 700;
+}
+
+.setup-card,
+.switcher-card,
+.matches-section,
+.admin-card {
+  margin-bottom: 20px;
+  padding: 22px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.section-label {
+  margin: 0 0 8px;
+  color: #2563eb;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.section-heading h2,
+.setup-card h2,
+.switcher-card h2,
+.admin-card h3 {
+  margin: 0;
+}
+
+.section-copy {
+  margin: 0;
+  color: #475569;
+  max-width: 560px;
+}
+
+.inline-form,
+.stack-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.inline-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+.stack-form .primary-button {
+  justify-self: start;
+}
+
+.two-column-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.text-input,
+.select-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.text-input:focus,
+.select-input:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #60a5fa;
+}
+
+.invite-list,
+.member-list,
+.admin-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.invite-row,
+.member-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.invite-name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.invite-meta {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 0.82rem;
   font-weight: 700;
 }
 
@@ -293,7 +425,21 @@ button {
   }
 
   .dashboard-summary,
+  .inline-form,
+  .two-column-grid,
+  .section-heading,
   .match-actions {
     grid-template-columns: 1fr;
+  }
+
+  .inline-form,
+  .section-heading {
+    display: grid;
+  }
+
+  .invite-row,
+  .member-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

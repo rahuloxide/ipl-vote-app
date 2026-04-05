@@ -2,17 +2,105 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSuperAdminEmail() {
+      return signedIn() && request.auth.token.email == "rahul.jain.en@gmail.com";
+    }
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isLeagueAdmin(leagueId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/leagues/$(leagueId)).data.adminUid == request.auth.uid;
+    }
+
+    function isLeagueMember(leagueId) {
+      return signedIn()
+        && (
+          isLeagueAdmin(leagueId)
+          || exists(/databases/$(database)/documents/leagueMembers/$(leagueId + "_" + request.auth.uid))
+        );
+    }
+
+    function inviteIdForCurrentUser(leagueId) {
+      return leagueId + "_" + request.auth.token.email;
+    }
+
+    match /users/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.email == request.auth.token.email
+        && (
+          request.resource.data.role == "user"
+          || (isSuperAdminEmail() && request.resource.data.role == "superadmin")
+        );
+
+      allow read: if signedIn() && request.auth.uid == userId;
+
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.email == resource.data.email
+        && (
+          request.resource.data.role == resource.data.role
+          || (isSuperAdminEmail() && request.resource.data.role == "superadmin")
+        );
+    }
+
+    match /leagues/{leagueId} {
+      allow create: if signedIn() && request.resource.data.adminUid == request.auth.uid;
+      allow read: if isLeagueMember(leagueId);
+      allow update, delete: if isLeagueAdmin(leagueId);
+    }
+
+    match /leagueInvites/{inviteId} {
+      allow create, update: if signedIn() && isLeagueAdmin(request.resource.data.leagueId);
+      allow delete: if signedIn()
+        && (
+          isLeagueAdmin(resource.data.leagueId)
+          || resource.data.email == request.auth.token.email
+        );
+      allow read: if signedIn()
+        && (
+          resource.data.email == request.auth.token.email
+          || isLeagueAdmin(resource.data.leagueId)
+        );
+    }
+
+    match /leagueMembers/{memberId} {
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isLeagueAdmin(resource.data.leagueId)
+        );
+
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.inviteId == inviteIdForCurrentUser(request.resource.data.leagueId)
+        && exists(/databases/$(database)/documents/leagueInvites/$(request.resource.data.inviteId));
+
+      allow update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isLeagueAdmin(resource.data.leagueId)
+        );
+    }
+
     match /matches/{matchId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow read: if isLeagueMember(resource.data.leagueId);
+      allow create, update: if signedIn() && isLeagueAdmin(request.resource.data.leagueId);
+      allow delete: if signedIn() && isLeagueAdmin(resource.data.leagueId);
     }
 
     match /picks/{pickId} {
-      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid;
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create, update: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && isLeagueMember(request.resource.data.leagueId);
     }
   }
 }

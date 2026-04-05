@@ -1,17 +1,19 @@
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 
-function AppHeader({ isLoggedIn, greetingName }) {
+function AppHeader({ isLoggedIn, greetingName, isSuperAdminUser }) {
   return (
     <header className="app-header">
       <div>
-        <p className="eyebrow">IPL Pick Center</p>
-        <h1>Pick Your IPL Winners</h1>
+        <p className="eyebrow">IPL League Center</p>
+        <h1>Run a private IPL league with picks, members, and admin controls.</h1>
         <p className="subtitle">
           {isLoggedIn
-            ? `Welcome back, ${greetingName}. Choose the team you think will win each match.`
-            : "Sign in with Google to manage your IPL match predictions."}
+            ? `Welcome back, ${greetingName}. Manage your league or lock in your match winners.`
+            : "Sign in with Google to create a league, invite players, and make your picks."}
         </p>
+
+        {isLoggedIn && isSuperAdminUser ? <p className="superadmin-badge">Super Admin</p> : null}
       </div>
 
       {isLoggedIn ? (

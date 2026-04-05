@@ -1,75 +1,221 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import AdminPanel from "./AdminPanel";
+import CreateLeagueCard from "./CreateLeagueCard";
+import InvitesCard from "./InvitesCard";
+import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
 import {
-  saveUserPick,
-  seedMatchesIfEmpty,
-  subscribeToMatches,
-  subscribeToUserPicks,
-} from "../services/matchService";
+  acceptLeagueInvite,
+  createLeague,
+  createLeagueMatch,
+  getLeagueRole,
+  inviteLeagueUser,
+  saveLeaguePick,
+  subscribeToLeagueInvites,
+  subscribeToLeagueMatches,
+  subscribeToLeagueMembers,
+  subscribeToLeaguePicks,
+  subscribeToUserLeagues,
+} from "../services/leagueService";
 
 function Dashboard({ user }) {
-  const [matches, setMatches] = useState([]);
-  const [picks, setPicks] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [leagues, setLeagues] = useState([]);
+  const [invites, setInvites] = useState([]);
+  const [selectedLeagueId, setSelectedLeagueId] = useState("");
+  const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [picks, setPicks] = useState({});
 
   useEffect(() => {
-    let matchesReady = false;
-    let picksReady = false;
-
-    const finishLoading = () => {
-      if (matchesReady && picksReady) {
+    const unsubscribeLeagues = subscribeToUserLeagues(
+      user.uid,
+      (nextLeagues) => {
+        setLeagues(nextLeagues);
         setIsLoading(false);
-      }
-    };
-
-    seedMatchesIfEmpty().catch((error) => {
-      setErrorMessage(error.message || "Unable to prepare match data.");
-      setIsLoading(false);
-    });
-
-    const unsubscribeMatches = subscribeToMatches(
-      (nextMatches) => {
-        setMatches(nextMatches);
-        matchesReady = true;
-        finishLoading();
       },
       (error) => {
-        setErrorMessage(error.message || "Unable to load matches.");
+        setErrorMessage(error.message || "Unable to load your leagues.");
         setIsLoading(false);
       }
     );
 
-    const unsubscribePicks = subscribeToUserPicks(
-      user.uid,
-      (nextPicks) => {
-        setPicks(nextPicks);
-        picksReady = true;
-        finishLoading();
+    const unsubscribeInvites = subscribeToLeagueInvites(
+      user.email,
+      (nextInvites) => {
+        setInvites(nextInvites);
       },
       (error) => {
-        setErrorMessage(error.message || "Unable to load your picks.");
-        setIsLoading(false);
+        setErrorMessage(error.message || "Unable to load your league invites.");
       }
     );
 
     return () => {
+      unsubscribeLeagues();
+      unsubscribeInvites();
+    };
+  }, [user.email, user.uid]);
+
+  useEffect(() => {
+    if (!leagues.length) {
+      setSelectedLeagueId("");
+      return;
+    }
+
+    const selectedLeagueStillExists = leagues.some((league) => league.id === selectedLeagueId);
+
+    if (!selectedLeagueStillExists) {
+      setSelectedLeagueId(leagues[0].id);
+    }
+  }, [leagues, selectedLeagueId]);
+
+  useEffect(() => {
+    if (!selectedLeagueId) {
+      setMatches([]);
+      setMembers([]);
+      setPicks({});
+      setSelectedLeagueRole(null);
+      return;
+    }
+
+    const unsubscribeMatches = subscribeToLeagueMatches(
+      selectedLeagueId,
+      (nextMatches) => {
+        setMatches(nextMatches);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league matches.");
+      }
+    );
+
+    const unsubscribeMembers = subscribeToLeagueMembers(
+      selectedLeagueId,
+      (nextMembers) => {
+        setMembers(nextMembers);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league members.");
+      }
+    );
+
+    const unsubscribePicks = subscribeToLeaguePicks(
+      { leagueId: selectedLeagueId, userId: user.uid },
+      (nextPicks) => {
+        setPicks(nextPicks);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load your picks.");
+      }
+    );
+
+    getLeagueRole({ leagueId: selectedLeagueId, userId: user.uid })
+      .then((role) => {
+        setSelectedLeagueRole(role);
+      })
+      .catch((error) => {
+        setErrorMessage(error.message || "Unable to determine your league role.");
+      });
+
+    return () => {
       unsubscribeMatches();
+      unsubscribeMembers();
       unsubscribePicks();
     };
-  }, [user.uid]);
+  }, [selectedLeagueId, user.uid]);
+
+  const selectedLeague = useMemo(
+    () => leagues.find((league) => league.id === selectedLeagueId) || null,
+    [leagues, selectedLeagueId]
+  );
+
+  const isAdmin = selectedLeagueRole === "admin";
+
+  const handleCreateLeague = async (leagueName) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      const newLeagueId = await createLeague({
+        name: leagueName,
+        user,
+      });
+      setSelectedLeagueId(newLeagueId);
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to create your league.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAcceptInvite = async (invite) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await acceptLeagueInvite({
+        inviteId: invite.id,
+        invite,
+        user,
+      });
+      setSelectedLeagueId(invite.leagueId);
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to join this league.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInviteUser = async (email) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await inviteLeagueUser({
+        leagueId: selectedLeagueId,
+        email,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to send this invite.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCreateMatch = async ({ teamA, teamB, venue, kickoff }) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await createLeagueMatch({
+        leagueId: selectedLeagueId,
+        teamA,
+        teamB,
+        venue,
+        kickoff,
+        userId: user.uid,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to create this match.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handlePick = async (matchId, selectedTeam) => {
     setErrorMessage("");
     setIsSaving(true);
 
     try {
-      await saveUserPick({
-        userId: user.uid,
+      await saveLeaguePick({
+        leagueId: selectedLeagueId,
         matchId,
         selectedTeam,
+        userId: user.uid,
+        userEmail: user.email,
       });
     } catch (error) {
       setErrorMessage(error.message || "Unable to save your pick.");
@@ -90,24 +236,77 @@ function Dashboard({ user }) {
           <p className="summary-value">{user.email}</p>
         </div>
         <div>
-          <p className="summary-label">Matches</p>
+          <p className="summary-label">Leagues</p>
+          <p className="summary-value">{leagues.length}</p>
+        </div>
+      </div>
+
+      <div className="dashboard-summary">
+        <div>
+          <p className="summary-label">Role</p>
+          <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
+        </div>
+        <div>
+          <p className="summary-label">Pending invites</p>
+          <p className="summary-value">{invites.length}</p>
+        </div>
+        <div>
+          <p className="summary-label">Matches in league</p>
           <p className="summary-value">{matches.length}</p>
         </div>
       </div>
 
       {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
 
-      <div className="match-grid">
-        {matches.map((match) => (
-          <MatchCard
-            key={match.id}
-            match={match}
-            selectedTeam={picks[match.id]}
-            onPick={handlePick}
-            isSaving={isSaving}
+      <InvitesCard invites={invites} onAcceptInvite={handleAcceptInvite} isSubmitting={isSaving} />
+
+      {!leagues.length ? (
+        <CreateLeagueCard onCreateLeague={handleCreateLeague} isSubmitting={isSaving} />
+      ) : (
+        <>
+          <LeagueSwitcher
+            leagues={leagues}
+            selectedLeagueId={selectedLeagueId}
+            onSelectLeague={setSelectedLeagueId}
           />
-        ))}
-      </div>
+
+          {isAdmin && selectedLeague ? (
+            <AdminPanel
+              league={selectedLeague}
+              members={members}
+              onInviteUser={handleInviteUser}
+              onCreateMatch={handleCreateMatch}
+              isSaving={isSaving}
+            />
+          ) : null}
+
+          <section className="matches-section">
+            <div className="section-heading">
+              <div>
+                <p className="section-label">Match picks</p>
+                <h2>{selectedLeague?.name || "League matches"}</h2>
+              </div>
+              <p className="section-copy">
+                {matches.length
+                  ? "Choose one winner per match. Your picks save instantly."
+                  : "No matches yet. The league admin can add the first fixture."}
+              </p>
+            </div>
+
+            <div className="match-grid">
+              {matches.map((match) => (
+                <MatchCard
+                  key={match.id}
+                  match={match}
+                  selectedTeam={picks[match.id]}
+                  onPick={handlePick}
+                  isSaving={isSaving}
+                />
+              ))}
+            </div>
+          </section>
+        </>
+      )}
     </section>
   );
 }

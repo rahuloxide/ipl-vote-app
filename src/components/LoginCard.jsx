@@ -22,11 +22,11 @@ function LoginCard() {
   return (
     <section className="login-card">
       <div className="login-copy">
-        <span className="pill">Firebase Auth here</span>
+        <span className="pill">Firebase Auth</span>
         <h2>One-click Google login</h2>
         <p>
-          Sign in to see the match dashboard and save your winner selections in
-          Firestore.
+          Sign in to create a league, invite players, manage matches, and save
+          winner selections in Firestore.
         </p>
       </div>
 

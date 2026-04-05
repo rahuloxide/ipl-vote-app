@@ -13,8 +13,12 @@ A clean React + Firebase app for IPL winner picks.
 ## Features
 
 - Google login
-- Logged-in dashboard
-- IPL matches list
+- League creation
+- League admin role
+- Admin-created matches
+- Admin invites by email
+- Logged-in league dashboard
+- IPL matches list per league
 - Pick a winner for each match
 - Picks saved in Firestore
 - Component-based code structure
@@ -30,14 +34,19 @@ A clean React + Firebase app for IPL winner picks.
 |-- package.json
 |-- src
 |   |-- components
+|   |   |-- AdminPanel.jsx
 |   |   |-- AppHeader.jsx
+|   |   |-- CreateLeagueCard.jsx
 |   |   |-- Dashboard.jsx
+|   |   |-- InvitesCard.jsx
+|   |   |-- LeagueSwitcher.jsx
 |   |   |-- LoadingState.jsx
 |   |   |-- LoginCard.jsx
 |   |   `-- MatchCard.jsx
 |   |-- data
 |   |   `-- defaultMatches.js
 |   |-- services
+|   |   |-- leagueService.js
 |   |   `-- matchService.js
 |   |-- App.jsx
 |   |-- firebase.js
@@ -76,7 +85,17 @@ A clean React + Firebase app for IPL winner picks.
 3. Start in production mode or test mode.
 4. Choose a region.
 
-### 5. Add environment variables
+### 5. Firestore data model used by this app
+
+The app stores data in these collections:
+
+- `leagues`
+- `leagueMembers`
+- `leagueInvites`
+- `matches`
+- `picks`
+
+### 6. Add environment variables
 
 Create a file named `.env` in the project root and copy values from `.env.example`.
 
@@ -123,6 +142,13 @@ This project includes starter rules in `firestore.rules`.
 
 Apply them with Firebase CLI after connecting your project.
 
+These rules support:
+
+- admins creating leagues and matches
+- admins inviting users by email
+- invited users joining a league
+- members making their own picks
+
 ## Deploy to Firebase Hosting
 
 ### 1. Install Firebase CLI
@@ -167,6 +193,7 @@ After deploy, Firebase will give you a live URL you can share.
 
 ## Notes
 
-- Matches are seeded automatically the first time the Firestore `matches` collection is empty.
+- Any signed-in user can create a new league and becomes that league's admin.
+- Admins can invite users by email and create league matches.
+- Invited users must sign in with the same email address that was invited.
 - Each signed-in user stores their own picks in Firestore.
-- For production, you can tighten Firestore rules further if you want admin-only match management.
