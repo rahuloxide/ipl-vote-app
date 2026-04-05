@@ -1,0 +1,133 @@
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #111827;
+  background: #f3f4f6;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: linear-gradient(180deg, #f9fafb 0%, #eef2ff 100%);
+}
+
+.vote-card {
+  width: min(100%, 440px);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  padding: 32px 24px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #4b5563;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.5rem);
+}
+
+.subtitle {
+  margin: 12px 0 0;
+  color: #6b7280;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.vote-button {
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.vote-button:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.vote-button:active {
+  transform: translateY(0);
+}
+
+.vote-button.csk {
+  background: #f59e0b;
+}
+
+.vote-button.mi {
+  background: #2563eb;
+}
+
+.scoreboard {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.score-block {
+  border-radius: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 18px 16px;
+}
+
+.team-name {
+  display: block;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.score-block strong {
+  font-size: 2rem;
+}
+
+.total-votes {
+  margin: 20px 0 0;
+  color: #374151;
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .vote-card {
+    padding: 24px 18px;
+  }
+
+  .actions,
+  .scoreboard {
+    grid-template-columns: 1fr;
+  }
+}
