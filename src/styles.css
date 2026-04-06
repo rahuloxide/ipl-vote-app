@@ -173,6 +173,38 @@ button {
   gap: 24px;
 }
 
+.auth-mode-toggle {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.auth-form {
+  max-width: 460px;
+}
+
+.auth-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.auth-divider::before {
+  content: "";
+  position: absolute;
+  inset: 50% 0 auto;
+  border-top: 1px solid #e2e8f0;
+}
+
+.auth-divider span {
+  position: relative;
+  padding: 0 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
 .login-copy h2 {
   margin: 12px 0 10px;
   font-size: 1.75rem;
@@ -577,6 +609,15 @@ button {
   background: #fef2f2;
   color: #b91c1c;
   border: 1px solid #fecaca;
+}
+
+.inline-success {
+  margin: 0 0 20px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
 }
 
 @keyframes spin {

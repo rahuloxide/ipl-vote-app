@@ -90,7 +90,6 @@ service cloud.firestore {
     match /leagueRequests/{requestId} {
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.userEmail == request.auth.token.email
         && request.resource.data.status == "pending"
         && !exists(/databases/$(database)/documents/leagueRequests/$(requestId))
         && !isLeagueMember(request.resource.data.leagueId);

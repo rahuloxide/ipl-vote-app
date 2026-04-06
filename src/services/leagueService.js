@@ -255,9 +255,15 @@ export function subscribeToPendingLeagueRequests(leagueId, onData, onError) {
 
 export async function requestToJoinLeague({ leagueId, userId, userEmail }) {
   const requestReference = doc(db, "leagueRequests", `${leagueId}_${userId}`);
-  const requestSnapshot = await getDoc(requestReference);
+  const existingRequestsQuery = query(
+    leagueRequestsCollection,
+    where("userId", "==", userId),
+    where("leagueId", "==", leagueId),
+    where("status", "==", "pending")
+  );
+  const existingRequestsSnapshot = await getDocs(existingRequestsQuery);
 
-  if (requestSnapshot.exists()) {
+  if (!existingRequestsSnapshot.empty) {
     throw new Error("You already have a request pending for this league.");
   }
 

@@ -13,10 +13,11 @@ A clean React + Firebase app for IPL winner picks.
 ## Features
 
 - Google login
-- League creation
-- League admin role
-- Admin-created matches
-- Admin invites by email
+- Email/password signup and login
+- Password reset email flow
+- Role-based user profiles in Firestore
+- Single admin workspace per admin
+- Admin-managed matches and members
 - Logged-in league dashboard
 - IPL matches list per league
 - Pick a winner for each match
@@ -70,13 +71,14 @@ A clean React + Firebase app for IPL winner picks.
 3. Register the app.
 4. Copy the Firebase config values.
 
-### 3. Enable Google Authentication
+### 3. Enable Firebase Authentication providers
 
 1. In Firebase Console, open **Authentication**.
 2. Click **Get started**.
 3. Open the **Sign-in method** tab.
 4. Enable **Google**.
-5. Save.
+5. Enable **Email/Password**.
+6. Save.
 
 ### 4. Create Firestore
 
@@ -91,9 +93,10 @@ The app stores data in these collections:
 
 - `leagues`
 - `leagueMembers`
-- `leagueInvites`
+- `leagueRequests`
 - `matches`
 - `picks`
+- `users`
 
 ### 6. Add environment variables
 
@@ -144,9 +147,10 @@ Apply them with Firebase CLI after connecting your project.
 
 These rules support:
 
-- admins creating leagues and matches
-- admins inviting users by email
-- invited users joining a league
+- users creating their own auth-backed profile document
+- admins managing one default league workspace
+- users requesting to join a league
+- admins approving members and managing matches
 - members making their own picks
 
 ## Deploy to Firebase Hosting
@@ -193,7 +197,8 @@ After deploy, Firebase will give you a live URL you can share.
 
 ## Notes
 
-- Any signed-in user can create a new league and becomes that league's admin.
-- Admins can invite users by email and create league matches.
-- Invited users must sign in with the same email address that was invited.
+- Google sign-in and email/password sign-in can both be enabled at the same time.
+- On first login, the app creates a `users/{uid}` document with a default role.
+- Admin users automatically get one default admin workspace.
+- League access for regular users is handled through join requests.
 - Each signed-in user stores their own picks in Firestore.
