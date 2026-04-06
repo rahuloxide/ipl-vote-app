@@ -1,6 +1,8 @@
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 
+const buildTimestamp = __BUILD_TIMESTAMP__;
+
 function AppHeader({
   isLoggedIn,
   greetingName,
@@ -8,6 +10,8 @@ function AppHeader({
   currentUserRole,
   activeView,
   onChangeView,
+  hasManagedLeague,
+  onOpenUsersView,
 }) {
   const showNavigation = isLoggedIn;
 
@@ -22,6 +26,8 @@ function AppHeader({
             : "Sign in with Google to create a league, invite players, and make your picks."}
         </p>
 
+        <p className="build-stamp">Build: {buildTimestamp}</p>
+
         {isLoggedIn && isSuperAdminUser ? <p className="superadmin-badge">Super Admin</p> : null}
 
         {showNavigation ? (
@@ -35,10 +41,28 @@ function AppHeader({
 
             {currentUserRole === "admin" ? (
               <button
+                className={`nav-link ${activeView === "leagues" ? "active" : ""}`}
+                onClick={() => onChangeView("leagues")}
+              >
+                Leagues
+              </button>
+            ) : null}
+
+            {currentUserRole === "admin" ? (
+              <button
                 className={`nav-link ${activeView === "createLeague" ? "active" : ""}`}
                 onClick={() => onChangeView("createLeague")}
               >
                 Create League
+              </button>
+            ) : null}
+
+            {currentUserRole === "admin" && hasManagedLeague ? (
+              <button
+                className={`nav-link ${activeView === "leagueDetail" ? "active" : ""}`}
+                onClick={onOpenUsersView}
+              >
+                Users
               </button>
             ) : null}
 

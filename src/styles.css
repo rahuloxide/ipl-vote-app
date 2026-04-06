@@ -85,6 +85,13 @@ button {
   font-size: 1rem;
 }
 
+.build-stamp {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-family: Consolas, "Courier New", monospace;
+}
+
 .superadmin-badge {
   display: inline-flex;
   margin: 14px 0 0;
@@ -121,6 +128,28 @@ button {
   background: #0f172a;
   color: #ffffff;
   border-color: #0f172a;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-button:hover {
+  color: #1d4ed8;
+}
+
+.danger-link {
+  color: #b91c1c;
+}
+
+.danger-link:hover {
+  color: #991b1b;
 }
 
 .header-actions {
@@ -372,12 +401,61 @@ button {
   margin-top: 28px;
 }
 
+.admin-leagues-page,
+.league-detail-page {
+  margin-top: 28px;
+}
+
 .users-card {
   padding: 22px;
   border-radius: 22px;
   background: #ffffff;
   border: 1px solid #e2e8f0;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.nested-card {
+  margin-bottom: 0;
+  box-shadow: none;
+  background: #f8fafc;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #f8fafc;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.simple-table th,
+.simple-table td {
+  text-align: left;
+  padding: 14px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.simple-table th {
+  background: #eef2f7;
+  color: #334155;
+  font-size: 0.85rem;
+}
+
+.simple-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .league-catalog {

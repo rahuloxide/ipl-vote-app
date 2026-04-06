@@ -1,5 +1,6 @@
 import {
   arrayUnion,
+  arrayRemove,
   addDoc,
   writeBatch,
   collection,
@@ -119,6 +120,43 @@ export function subscribeToAllLeagues(onData, onError) {
         .sort((left, right) => left.name.localeCompare(right.name));
 
       onData(leagues);
+    },
+    onError
+  );
+}
+
+export function subscribeToAdminCreatedLeagues(userId, onData, onError) {
+  const leaguesQuery = query(leaguesCollection, where("createdBy", "==", userId));
+
+  return onSnapshot(
+    leaguesQuery,
+    (snapshot) => {
+      const leagues = snapshot.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+
+      onData(leagues);
+    },
+    onError
+  );
+}
+
+export function subscribeToLeague(leagueId, onData, onError) {
+  return onSnapshot(
+    doc(db, "leagues", leagueId),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onData(null);
+        return;
+      }
+
+      onData({
+        id: snapshot.id,
+        ...snapshot.data(),
+      });
     },
     onError
   );
@@ -298,9 +336,9 @@ export function subscribeToLeagueMatches(leagueId, onData, onError) {
           ...item.data(),
         }))
         .sort((left, right) => {
-          const leftKickoff = left.kickoff || "";
-          const rightKickoff = right.kickoff || "";
-          return leftKickoff.localeCompare(rightKickoff);
+          const leftDateTime = left.dateTime || left.kickoff || "";
+          const rightDateTime = right.dateTime || right.kickoff || "";
+          return leftDateTime.localeCompare(rightDateTime);
         });
 
       onData(matches);
@@ -309,16 +347,64 @@ export function subscribeToLeagueMatches(leagueId, onData, onError) {
   );
 }
 
-export async function createLeagueMatch({ leagueId, teamA, teamB, venue, kickoff, userId }) {
+export async function createLeagueMatch({
+  leagueId,
+  matchName,
+  dateTime,
+  points,
+  option1,
+  option2,
+  userId,
+}) {
   await addDoc(matchesCollection, {
     leagueId,
-    teamA: teamA.trim(),
-    teamB: teamB.trim(),
-    venue: venue.trim(),
-    kickoff: kickoff.trim(),
+    matchName: matchName.trim(),
+    dateTime: dateTime.trim(),
+    points: Number(points),
+    option1: option1.trim(),
+    option2: option2.trim(),
+    teamA: option1.trim(),
+    teamB: option2.trim(),
+    kickoff: dateTime.trim(),
+    venue: "",
     createdByUid: userId,
     createdAt: serverTimestamp(),
   });
+}
+
+export async function updateLeagueMatch({
+  matchId,
+  matchName,
+  dateTime,
+  points,
+  option1,
+  option2,
+}) {
+  await updateDoc(doc(db, "matches", matchId), {
+    matchName: matchName.trim(),
+    dateTime: dateTime.trim(),
+    points: Number(points),
+    option1: option1.trim(),
+    option2: option2.trim(),
+    teamA: option1.trim(),
+    teamB: option2.trim(),
+    kickoff: dateTime.trim(),
+  });
+}
+
+export async function deleteLeagueMatch(matchId) {
+  await deleteDoc(doc(db, "matches", matchId));
+}
+
+export async function removeLeagueMember({ leagueId, userId }) {
+  const batch = writeBatch(db);
+
+  batch.delete(doc(db, "leagueMembers", `${leagueId}_${userId}`));
+  batch.update(doc(db, "leagues", leagueId), {
+    members: arrayRemove(userId),
+  });
+
+  await batch.commit();
 }
 
 export function subscribeToLeaguePicks({ leagueId, userId }, onData, onError) {
