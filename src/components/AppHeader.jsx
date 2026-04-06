@@ -9,6 +9,8 @@ function AppHeader({
   activeView,
   onChangeView,
 }) {
+  const showNavigation = isLoggedIn;
+
   return (
     <header className="app-header">
       <div>
@@ -21,30 +23,39 @@ function AppHeader({
         </p>
 
         {isLoggedIn && isSuperAdminUser ? <p className="superadmin-badge">Super Admin</p> : null}
+
+        {showNavigation ? (
+          <nav className="nav-menu" aria-label="Primary">
+            <button
+              className={`nav-link ${activeView === "dashboard" ? "active" : ""}`}
+              onClick={() => onChangeView("dashboard")}
+            >
+              Home
+            </button>
+
+            {currentUserRole === "admin" ? (
+              <button
+                className={`nav-link ${activeView === "createLeague" ? "active" : ""}`}
+                onClick={() => onChangeView("createLeague")}
+              >
+                Create League
+              </button>
+            ) : null}
+
+            {isSuperAdminUser ? (
+              <button
+                className={`nav-link ${activeView === "superadmin" ? "active" : ""}`}
+                onClick={() => onChangeView("superadmin")}
+              >
+                Super Admin
+              </button>
+            ) : null}
+          </nav>
+        ) : null}
       </div>
 
       {isLoggedIn ? (
         <div className="header-actions">
-          {currentUserRole === "admin" ? (
-            <button
-              className="secondary-button"
-              onClick={() => onChangeView(activeView === "createLeague" ? "dashboard" : "createLeague")}
-            >
-              {activeView === "createLeague" ? "Open Main App" : "Create League"}
-            </button>
-          ) : null}
-
-          {isSuperAdminUser ? (
-            <button
-              className="secondary-button"
-              onClick={() =>
-                onChangeView(activeView === "superadmin" ? "dashboard" : "superadmin")
-              }
-            >
-              {activeView === "superadmin" ? "Open Main App" : "Open Super Admin"}
-            </button>
-          ) : null}
-
           <button className="secondary-button" onClick={() => signOut(auth)}>
             Sign out
           </button>

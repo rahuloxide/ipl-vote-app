@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPanel from "./AdminPanel";
 import InvitesCard from "./InvitesCard";
+import LeagueCatalog from "./LeagueCatalog";
 import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
@@ -9,11 +10,14 @@ import {
   createLeagueMatch,
   getLeagueRole,
   inviteLeagueUser,
+  requestToJoinLeague,
   saveLeaguePick,
+  subscribeToAllLeagues,
   subscribeToLeagueInvites,
   subscribeToLeagueMatches,
   subscribeToLeagueMembers,
   subscribeToLeaguePicks,
+  subscribeToUserLeagueRequests,
   subscribeToUserLeagues,
 } from "../services/leagueService";
 
@@ -22,7 +26,9 @@ function Dashboard({ user, currentUserRole }) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [leagues, setLeagues] = useState([]);
+  const [allLeagues, setAllLeagues] = useState([]);
   const [invites, setInvites] = useState([]);
+  const [leagueRequests, setLeagueRequests] = useState([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState("");
   const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
   const [matches, setMatches] = useState([]);
@@ -52,9 +58,30 @@ function Dashboard({ user, currentUserRole }) {
       }
     );
 
+    const unsubscribeAllLeagues = subscribeToAllLeagues(
+      (nextLeagues) => {
+        setAllLeagues(nextLeagues);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league list.");
+      }
+    );
+
+    const unsubscribeLeagueRequests = subscribeToUserLeagueRequests(
+      user.uid,
+      (nextRequests) => {
+        setLeagueRequests(nextRequests);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load join requests.");
+      }
+    );
+
     return () => {
       unsubscribeLeagues();
       unsubscribeInvites();
+      unsubscribeAllLeagues();
+      unsubscribeLeagueRequests();
     };
   }, [user.email, user.uid]);
 
@@ -131,6 +158,19 @@ function Dashboard({ user, currentUserRole }) {
   );
 
   const isAdmin = selectedLeagueRole === "admin";
+  const requestedLeagueIds = useMemo(
+    () => leagueRequests.filter((request) => request.status === "pending").map((request) => request.leagueId),
+    [leagueRequests]
+  );
+
+  const browseableLeagues = useMemo(() => {
+    const joinedLeagueIds = leagues.map((league) => league.id);
+
+    return allLeagues.filter(
+      (league) =>
+        !joinedLeagueIds.includes(league.id) && !requestedLeagueIds.includes(league.id)
+    );
+  }, [allLeagues, leagues, requestedLeagueIds]);
 
   const handleAcceptInvite = async (invite) => {
     setErrorMessage("");
@@ -186,6 +226,23 @@ function Dashboard({ user, currentUserRole }) {
     }
   };
 
+  const handleRequestJoin = async (leagueId) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await requestToJoinLeague({
+        leagueId,
+        userId: user.uid,
+        userEmail: user.email,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to send this join request.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handlePick = async (matchId, selectedTeam) => {
     setErrorMessage("");
     setIsSaving(true);
@@ -234,6 +291,10 @@ function Dashboard({ user, currentUserRole }) {
         <div>
           <p className="summary-label">League role</p>
           <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
+        </div>
+        <div>
+          <p className="summary-label">League members</p>
+          <p className="summary-value">{selectedLeague ? members.length + 1 : 0}</p>
         </div>
         <div>
           <p className="summary-label">Matches in league</p>
@@ -301,6 +362,13 @@ function Dashboard({ user, currentUserRole }) {
           </section>
         </>
       )}
+
+      <LeagueCatalog
+        leagues={browseableLeagues}
+        requestedLeagueIds={requestedLeagueIds}
+        onRequestJoin={handleRequestJoin}
+        isSubmitting={isSaving}
+      />
     </section>
   );
 }

@@ -39,7 +39,8 @@ function CreateLeaguePage({ user, onCreated }) {
           <h2>Start a new league</h2>
         </div>
         <p className="section-copy">
-          Admin users can create leagues and become the league owner for match setup and invites.
+          Admin users can create one league and become the league owner for match setup and
+          invites.
         </p>
       </div>
 

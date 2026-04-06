@@ -68,7 +68,7 @@ service cloud.firestore {
         && request.resource.data.createdBy == request.auth.uid
         && request.resource.data.members.size() == 1
         && request.resource.data.members[0] == request.auth.uid;
-      allow read: if isLeagueMember(leagueId);
+      allow read: if signedIn();
       allow update: if isLeagueAdmin(leagueId)
         || (
           signedIn()
@@ -112,6 +112,21 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/leagueInvites/$(request.resource.data.inviteId));
 
       allow update, delete: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isLeagueAdmin(resource.data.leagueId)
+        );
+    }
+
+    match /leagueRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userEmail == request.auth.token.email
+        && request.resource.data.status == "pending"
+        && !exists(/databases/$(database)/documents/leagueRequests/$(requestId))
+        && !isLeagueMember(request.resource.data.leagueId);
+
+      allow read: if signedIn()
         && (
           resource.data.userId == request.auth.uid
           || isLeagueAdmin(resource.data.leagueId)

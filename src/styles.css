@@ -96,6 +96,33 @@ button {
   font-weight: 700;
 }
 
+.nav-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.nav-link {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.nav-link:hover {
+  transform: translateY(-1px);
+}
+
+.nav-link.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
 .header-actions {
   display: flex;
   gap: 12px;
@@ -345,6 +372,32 @@ button {
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
 }
 
+.league-catalog {
+  display: grid;
+  gap: 14px;
+}
+
+.league-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.league-card-name {
+  margin: 0;
+  font-weight: 700;
+}
+
+.league-card-meta {
+  margin: 4px 0 0;
+  color: #64748b;
+}
+
 .user-email {
   margin: 0;
   font-weight: 700;
@@ -470,7 +523,8 @@ button {
 
   .invite-row,
   .member-row,
-  .user-row {
+  .user-row,
+  .league-card {
     align-items: flex-start;
     flex-direction: column;
   }

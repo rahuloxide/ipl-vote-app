@@ -5,6 +5,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -17,6 +18,7 @@ import { db } from "../firebase";
 const leaguesCollection = collection(db, "leagues");
 const leagueMembersCollection = collection(db, "leagueMembers");
 const leagueInvitesCollection = collection(db, "leagueInvites");
+const leagueRequestsCollection = collection(db, "leagueRequests");
 const matchesCollection = collection(db, "matches");
 const picksCollection = collection(db, "picks");
 
@@ -38,6 +40,13 @@ async function loadLeagueById(leagueId) {
 }
 
 export async function createLeague({ name, user }) {
+  const existingLeagueQuery = query(leaguesCollection, where("createdBy", "==", user.uid));
+  const existingLeagueSnapshot = await getDocs(existingLeagueQuery);
+
+  if (!existingLeagueSnapshot.empty) {
+    throw new Error("This admin already has a league.");
+  }
+
   const leagueReference = await addDoc(leaguesCollection, {
     name: name.trim(),
     createdBy: user.uid,
@@ -95,6 +104,23 @@ export function subscribeToUserLeagues(userId, onData, onError) {
     unsubscribeAdminLeagues();
     unsubscribeMemberLeagues();
   };
+}
+
+export function subscribeToAllLeagues(onData, onError) {
+  return onSnapshot(
+    leaguesCollection,
+    (snapshot) => {
+      const leagues = snapshot.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name));
+
+      onData(leagues);
+    },
+    onError
+  );
 }
 
 export function subscribeToLeagueInvites(email, onData, onError) {
@@ -169,6 +195,40 @@ export async function inviteLeagueUser({ leagueId, email }) {
     email: normalizedEmail,
     emailKey: normalizedEmail,
     role: "member",
+    createdAt: serverTimestamp(),
+  });
+}
+
+export function subscribeToUserLeagueRequests(userId, onData, onError) {
+  const requestsQuery = query(leagueRequestsCollection, where("userId", "==", userId));
+
+  return onSnapshot(
+    requestsQuery,
+    (snapshot) => {
+      const requests = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      onData(requests);
+    },
+    onError
+  );
+}
+
+export async function requestToJoinLeague({ leagueId, userId, userEmail }) {
+  const requestReference = doc(db, "leagueRequests", `${leagueId}_${userId}`);
+  const requestSnapshot = await getDoc(requestReference);
+
+  if (requestSnapshot.exists()) {
+    throw new Error("You already have a request pending for this league.");
+  }
+
+  await setDoc(requestReference, {
+    userId,
+    leagueId,
+    userEmail,
+    status: "pending",
     createdAt: serverTimestamp(),
   });
 }
