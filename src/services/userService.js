@@ -1,4 +1,4 @@
-import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 export const SUPER_ADMIN_EMAIL = "rahul.jain.en@gmail.com";
@@ -80,4 +80,38 @@ export async function getCurrentUserRole() {
 export async function isSuperAdmin() {
   const role = await getCurrentUserRole();
   return role === "superadmin";
+}
+
+export function subscribeToAllUsers(onData, onError) {
+  return onSnapshot(
+    collection(db, "users"),
+    (snapshot) => {
+      const users = snapshot.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((left, right) => left.email.localeCompare(right.email));
+
+      onData(users);
+    },
+    onError
+  );
+}
+
+export async function makeUserAdmin(userId) {
+  const userReference = doc(db, "users", userId);
+  const userSnapshot = await getDoc(userReference);
+
+  if (!userSnapshot.exists()) {
+    throw new Error("User not found.");
+  }
+
+  await setDoc(
+    userReference,
+    {
+      role: "admin",
+    },
+    { merge: true }
+  );
 }

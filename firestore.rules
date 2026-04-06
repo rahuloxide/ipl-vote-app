@@ -37,15 +37,23 @@ service cloud.firestore {
           || (isSuperAdminEmail() && request.resource.data.role == "superadmin")
         );
 
-      allow read: if signedIn() && request.auth.uid == userId;
+      allow read: if signedIn() && (request.auth.uid == userId || isSuperAdminEmail());
 
       allow update: if signedIn()
-        && request.auth.uid == userId
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.email == resource.data.email
         && (
-          request.resource.data.role == resource.data.role
-          || (isSuperAdminEmail() && request.resource.data.role == "superadmin")
+          (
+            request.auth.uid == userId
+            && (
+              request.resource.data.role == resource.data.role
+              || (isSuperAdminEmail() && request.resource.data.role == "superadmin")
+            )
+          )
+          || (
+            isSuperAdminEmail()
+            && request.resource.data.role in ["user", "admin", "superadmin"]
+          )
         );
     }
 

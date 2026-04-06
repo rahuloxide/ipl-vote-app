@@ -96,6 +96,13 @@ button {
   font-weight: 700;
 }
 
+.header-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .login-card,
 .loading-card {
   margin-top: 28px;
@@ -285,13 +292,15 @@ button {
 
 .invite-list,
 .member-list,
-.admin-panel {
+.admin-panel,
+.user-list {
   display: grid;
   gap: 14px;
 }
 
 .invite-row,
-.member-row {
+.member-row,
+.user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -322,6 +331,28 @@ button {
   color: #334155;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.superadmin-page {
+  margin-top: 28px;
+}
+
+.users-card {
+  padding: 22px;
+  border-radius: 22px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+}
+
+.user-email {
+  margin: 0;
+  font-weight: 700;
+}
+
+.user-role {
+  margin: 4px 0 0;
+  color: #64748b;
 }
 
 .match-grid {
@@ -438,7 +469,8 @@ button {
   }
 
   .invite-row,
-  .member-row {
+  .member-row,
+  .user-row {
     align-items: flex-start;
     flex-direction: column;
   }
