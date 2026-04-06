@@ -106,10 +106,18 @@ service cloud.firestore {
         );
 
       allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.userEmail == request.auth.token.email
-        && request.resource.data.inviteId == inviteIdForCurrentUser(request.resource.data.leagueId)
-        && exists(/databases/$(database)/documents/leagueInvites/$(request.resource.data.inviteId));
+        && (
+          (
+            request.resource.data.userId == request.auth.uid
+            && request.resource.data.userEmail == request.auth.token.email
+            && request.resource.data.inviteId == inviteIdForCurrentUser(request.resource.data.leagueId)
+            && exists(/databases/$(database)/documents/leagueInvites/$(request.resource.data.inviteId))
+          )
+          || (
+            isLeagueAdmin(request.resource.data.leagueId)
+            && request.resource.data.role == "member"
+          )
+        );
 
       allow update, delete: if signedIn()
         && (
@@ -131,6 +139,13 @@ service cloud.firestore {
           resource.data.userId == request.auth.uid
           || isLeagueAdmin(resource.data.leagueId)
         );
+
+      allow update: if signedIn()
+        && isLeagueAdmin(resource.data.leagueId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.userEmail == resource.data.userEmail
+        && request.resource.data.leagueId == resource.data.leagueId
+        && request.resource.data.status in ["approved", "rejected"];
     }
 
     match /matches/{matchId} {

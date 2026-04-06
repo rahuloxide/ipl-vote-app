@@ -1,6 +1,15 @@
 import { useState } from "react";
 
-function AdminPanel({ league, members, onInviteUser, onCreateMatch, isSaving }) {
+function AdminPanel({
+  league,
+  members,
+  pendingRequests,
+  onInviteUser,
+  onCreateMatch,
+  onApproveRequest,
+  onRejectRequest,
+  isSaving,
+}) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [formValues, setFormValues] = useState({
     teamA: "",
@@ -112,6 +121,45 @@ function AdminPanel({ league, members, onInviteUser, onCreateMatch, isSaving }) 
             {isSaving ? "Saving..." : "Add match"}
           </button>
         </form>
+      </div>
+
+      <div className="admin-card">
+        <div>
+          <p className="section-label">Join requests</p>
+          <h3>{pendingRequests.length} pending request{pendingRequests.length === 1 ? "" : "s"}</h3>
+        </div>
+
+        {pendingRequests.length ? (
+          <div className="request-list">
+            {pendingRequests.map((request) => (
+              <article className="request-row" key={request.id}>
+                <div>
+                  <p className="invite-name">{request.userEmail}</p>
+                  <p className="invite-meta">Status: {request.status}</p>
+                </div>
+
+                <div className="request-actions">
+                  <button
+                    className="primary-button"
+                    onClick={() => onApproveRequest(request)}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Approve"}
+                  </button>
+                  <button
+                    className="secondary-button"
+                    onClick={() => onRejectRequest(request)}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? "Saving..." : "Reject"}
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="section-copy">No pending requests for this league right now.</p>
+        )}
       </div>
 
       <div className="admin-card">

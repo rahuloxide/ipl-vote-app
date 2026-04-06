@@ -1,6 +1,7 @@
 import {
   arrayUnion,
   addDoc,
+  writeBatch,
   collection,
   deleteDoc,
   doc,
@@ -216,6 +217,27 @@ export function subscribeToUserLeagueRequests(userId, onData, onError) {
   );
 }
 
+export function subscribeToPendingLeagueRequests(leagueId, onData, onError) {
+  const requestsQuery = query(
+    leagueRequestsCollection,
+    where("leagueId", "==", leagueId),
+    where("status", "==", "pending")
+  );
+
+  return onSnapshot(
+    requestsQuery,
+    (snapshot) => {
+      const requests = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      onData(requests);
+    },
+    onError
+  );
+}
+
 export async function requestToJoinLeague({ leagueId, userId, userEmail }) {
   const requestReference = doc(db, "leagueRequests", `${leagueId}_${userId}`);
   const requestSnapshot = await getDoc(requestReference);
@@ -230,6 +252,37 @@ export async function requestToJoinLeague({ leagueId, userId, userEmail }) {
     userEmail,
     status: "pending",
     createdAt: serverTimestamp(),
+  });
+}
+
+export async function approveLeagueRequest({ leagueId, requestId, userId, userEmail }) {
+  const batch = writeBatch(db);
+
+  batch.set(doc(db, "leagueMembers", `${leagueId}_${userId}`), {
+    leagueId,
+    userId,
+    userEmail,
+    role: "member",
+    joinedAt: serverTimestamp(),
+    source: "request",
+  });
+
+  batch.update(doc(db, "leagues", leagueId), {
+    members: arrayUnion(userId),
+  });
+
+  batch.update(doc(db, "leagueRequests", requestId), {
+    status: "approved",
+    resolvedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+}
+
+export async function rejectLeagueRequest(requestId) {
+  await updateDoc(doc(db, "leagueRequests", requestId), {
+    status: "rejected",
+    resolvedAt: serverTimestamp(),
   });
 }
 

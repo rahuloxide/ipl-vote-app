@@ -320,14 +320,16 @@ button {
 .invite-list,
 .member-list,
 .admin-panel,
-.user-list {
+.user-list,
+.request-list {
   display: grid;
   gap: 14px;
 }
 
 .invite-row,
 .member-row,
-.user-row {
+.user-row,
+.request-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -358,6 +360,12 @@ button {
   color: #334155;
   font-size: 0.82rem;
   font-weight: 700;
+}
+
+.request-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .superadmin-page {
@@ -525,6 +533,11 @@ button {
   .member-row,
   .user-row,
   .league-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .request-row {
     align-items: flex-start;
     flex-direction: column;
   }

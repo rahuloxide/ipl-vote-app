@@ -7,9 +7,11 @@ import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
 import {
   acceptLeagueInvite,
+  approveLeagueRequest,
   createLeagueMatch,
   getLeagueRole,
   inviteLeagueUser,
+  rejectLeagueRequest,
   requestToJoinLeague,
   saveLeaguePick,
   subscribeToAllLeagues,
@@ -17,6 +19,7 @@ import {
   subscribeToLeagueMatches,
   subscribeToLeagueMembers,
   subscribeToLeaguePicks,
+  subscribeToPendingLeagueRequests,
   subscribeToUserLeagueRequests,
   subscribeToUserLeagues,
 } from "../services/leagueService";
@@ -33,6 +36,7 @@ function Dashboard({ user, currentUserRole }) {
   const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
   const [picks, setPicks] = useState({});
 
   useEffect(() => {
@@ -102,6 +106,7 @@ function Dashboard({ user, currentUserRole }) {
     if (!selectedLeagueId) {
       setMatches([]);
       setMembers([]);
+      setPendingRequests([]);
       setPicks({});
       setSelectedLeagueRole(null);
       return;
@@ -137,6 +142,16 @@ function Dashboard({ user, currentUserRole }) {
       }
     );
 
+    const unsubscribePendingRequests = subscribeToPendingLeagueRequests(
+      selectedLeagueId,
+      (nextRequests) => {
+        setPendingRequests(nextRequests);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load pending requests.");
+      }
+    );
+
     getLeagueRole({ leagueId: selectedLeagueId, userId: user.uid })
       .then((role) => {
         setSelectedLeagueRole(role);
@@ -148,6 +163,7 @@ function Dashboard({ user, currentUserRole }) {
     return () => {
       unsubscribeMatches();
       unsubscribeMembers();
+      unsubscribePendingRequests();
       unsubscribePicks();
     };
   }, [selectedLeagueId, user.uid]);
@@ -262,6 +278,37 @@ function Dashboard({ user, currentUserRole }) {
     }
   };
 
+  const handleApproveRequest = async (request) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await approveLeagueRequest({
+        leagueId: request.leagueId,
+        requestId: request.id,
+        userId: request.userId,
+        userEmail: request.userEmail,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to approve this request.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectRequest = async (request) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await rejectLeagueRequest(request.id);
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to reject this request.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   if (isLoading) {
     return <LoadingState message="Loading your dashboard..." />;
   }
@@ -329,8 +376,11 @@ function Dashboard({ user, currentUserRole }) {
             <AdminPanel
               league={selectedLeague}
               members={members}
+              pendingRequests={pendingRequests}
               onInviteUser={handleInviteUser}
               onCreateMatch={handleCreateMatch}
+              onApproveRequest={handleApproveRequest}
+              onRejectRequest={handleRejectRequest}
               isSaving={isSaving}
             />
           ) : null}
