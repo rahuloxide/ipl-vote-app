@@ -10,8 +10,6 @@ function AppHeader({
   currentUserRole,
   activeView,
   onChangeView,
-  hasManagedLeague,
-  onOpenUsersView,
 }) {
   const showNavigation = isLoggedIn;
 
@@ -45,15 +43,6 @@ function AppHeader({
                 onClick={() => onChangeView("admin")}
               >
                 Admin
-              </button>
-            ) : null}
-
-            {currentUserRole === "admin" && hasManagedLeague ? (
-              <button
-                className={`nav-link ${activeView === "admin" ? "active" : ""}`}
-                onClick={onOpenUsersView}
-              >
-                Users
               </button>
             ) : null}
 

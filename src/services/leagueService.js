@@ -355,6 +355,34 @@ export async function createLeagueMatch({
   });
 }
 
+export async function createLeagueMatchesBulk({ leagueId, matches, userId }) {
+  if (!matches.length) {
+    return;
+  }
+
+  const batch = writeBatch(db);
+
+  matches.forEach((match) => {
+    const matchReference = doc(matchesCollection);
+    batch.set(matchReference, {
+      leagueId,
+      matchName: match.matchName.trim(),
+      dateTime: match.dateTime.trim(),
+      points: Number(match.points),
+      option1: match.option1.trim(),
+      option2: match.option2.trim(),
+      teamA: match.option1.trim(),
+      teamB: match.option2.trim(),
+      kickoff: match.dateTime.trim(),
+      venue: "",
+      createdByUid: userId,
+      createdAt: serverTimestamp(),
+    });
+  });
+
+  await batch.commit();
+}
+
 export async function updateLeagueMatch({
   matchId,
   matchName,

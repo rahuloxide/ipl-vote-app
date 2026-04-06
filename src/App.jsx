@@ -22,7 +22,6 @@ function App() {
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedManagedLeagueId, setSelectedManagedLeagueId] = useState("");
-  const [managedLeagueSection, setManagedLeagueSection] = useState("matches");
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -123,14 +122,6 @@ function App() {
     return authUser.displayName.split(" ")[0];
   }, [authUser]);
 
-  const handleChangeView = (nextView) => {
-    if (nextView === "admin") {
-      setManagedLeagueSection("matches");
-    }
-
-    setActiveView(nextView);
-  };
-
   return (
     <main className="app-shell">
       <section className="app-panel">
@@ -140,12 +131,7 @@ function App() {
           isSuperAdminUser={isCurrentUserSuperAdmin}
           currentUserRole={currentUserRole}
           activeView={activeView}
-          onChangeView={handleChangeView}
-          hasManagedLeague={Boolean(selectedManagedLeagueId)}
-          onOpenUsersView={() => {
-            setManagedLeagueSection("users");
-            setActiveView("admin");
-          }}
+          onChangeView={setActiveView}
         />
 
         {isAuthLoading ? (
@@ -156,7 +142,6 @@ function App() {
           ) : activeView === "admin" && currentUserRole === "admin" ? (
             <LeagueDetailPage
               leagueId={selectedManagedLeagueId}
-              section={managedLeagueSection}
               user={authUser}
             />
           ) : (
