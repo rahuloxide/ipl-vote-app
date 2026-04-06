@@ -1,25 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import AdminPanel from "./AdminPanel";
-import InvitesCard from "./InvitesCard";
 import LeagueCatalog from "./LeagueCatalog";
 import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
 import {
-  acceptLeagueInvite,
-  approveLeagueRequest,
-  createLeagueMatch,
   getLeagueRole,
-  inviteLeagueUser,
-  rejectLeagueRequest,
   requestToJoinLeague,
   saveLeaguePick,
   subscribeToAllLeagues,
-  subscribeToLeagueInvites,
   subscribeToLeagueMatches,
   subscribeToLeagueMembers,
   subscribeToLeaguePicks,
-  subscribeToPendingLeagueRequests,
   subscribeToUserLeagueRequests,
   subscribeToUserLeagues,
 } from "../services/leagueService";
@@ -30,13 +21,11 @@ function Dashboard({ user, currentUserRole }) {
   const [errorMessage, setErrorMessage] = useState("");
   const [leagues, setLeagues] = useState([]);
   const [allLeagues, setAllLeagues] = useState([]);
-  const [invites, setInvites] = useState([]);
   const [leagueRequests, setLeagueRequests] = useState([]);
   const [selectedLeagueId, setSelectedLeagueId] = useState("");
   const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
-  const [pendingRequests, setPendingRequests] = useState([]);
   const [picks, setPicks] = useState({});
 
   useEffect(() => {
@@ -49,16 +38,6 @@ function Dashboard({ user, currentUserRole }) {
       (error) => {
         setErrorMessage(error.message || "Unable to load your leagues.");
         setIsLoading(false);
-      }
-    );
-
-    const unsubscribeInvites = subscribeToLeagueInvites(
-      user.email,
-      (nextInvites) => {
-        setInvites(nextInvites);
-      },
-      (error) => {
-        setErrorMessage(error.message || "Unable to load your league invites.");
       }
     );
 
@@ -83,11 +62,10 @@ function Dashboard({ user, currentUserRole }) {
 
     return () => {
       unsubscribeLeagues();
-      unsubscribeInvites();
       unsubscribeAllLeagues();
       unsubscribeLeagueRequests();
     };
-  }, [user.email, user.uid]);
+  }, [user.uid]);
 
   useEffect(() => {
     if (!leagues.length) {
@@ -106,7 +84,6 @@ function Dashboard({ user, currentUserRole }) {
     if (!selectedLeagueId) {
       setMatches([]);
       setMembers([]);
-      setPendingRequests([]);
       setPicks({});
       setSelectedLeagueRole(null);
       return;
@@ -142,16 +119,6 @@ function Dashboard({ user, currentUserRole }) {
       }
     );
 
-    const unsubscribePendingRequests = subscribeToPendingLeagueRequests(
-      selectedLeagueId,
-      (nextRequests) => {
-        setPendingRequests(nextRequests);
-      },
-      (error) => {
-        setErrorMessage(error.message || "Unable to load pending requests.");
-      }
-    );
-
     getLeagueRole({ leagueId: selectedLeagueId, userId: user.uid })
       .then((role) => {
         setSelectedLeagueRole(role);
@@ -163,7 +130,6 @@ function Dashboard({ user, currentUserRole }) {
     return () => {
       unsubscribeMatches();
       unsubscribeMembers();
-      unsubscribePendingRequests();
       unsubscribePicks();
     };
   }, [selectedLeagueId, user.uid]);
@@ -173,7 +139,6 @@ function Dashboard({ user, currentUserRole }) {
     [leagues, selectedLeagueId]
   );
 
-  const isAdmin = selectedLeagueRole === "admin";
   const requestedLeagueIds = useMemo(
     () => leagueRequests.filter((request) => request.status === "pending").map((request) => request.leagueId),
     [leagueRequests]
@@ -187,60 +152,6 @@ function Dashboard({ user, currentUserRole }) {
         !joinedLeagueIds.includes(league.id) && !requestedLeagueIds.includes(league.id)
     );
   }, [allLeagues, leagues, requestedLeagueIds]);
-
-  const handleAcceptInvite = async (invite) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await acceptLeagueInvite({
-        inviteId: invite.id,
-        invite,
-        user,
-      });
-      setSelectedLeagueId(invite.leagueId);
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to join this league.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleInviteUser = async (email) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await inviteLeagueUser({
-        leagueId: selectedLeagueId,
-        email,
-      });
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to send this invite.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCreateMatch = async ({ teamA, teamB, venue, kickoff }) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await createLeagueMatch({
-        leagueId: selectedLeagueId,
-        teamA,
-        teamB,
-        venue,
-        kickoff,
-        userId: user.uid,
-      });
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to create this match.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleRequestJoin = async (leagueId) => {
     setErrorMessage("");
@@ -278,37 +189,6 @@ function Dashboard({ user, currentUserRole }) {
     }
   };
 
-  const handleApproveRequest = async (request) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await approveLeagueRequest({
-        leagueId: request.leagueId,
-        requestId: request.id,
-        userId: request.userId,
-        userEmail: request.userEmail,
-      });
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to approve this request.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleRejectRequest = async (request) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await rejectLeagueRequest(request.id);
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to reject this request.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   if (isLoading) {
     return <LoadingState message="Loading your dashboard..." />;
   }
@@ -321,19 +201,16 @@ function Dashboard({ user, currentUserRole }) {
           <p className="summary-value">{user.email}</p>
         </div>
         <div>
-          <p className="summary-label">Leagues</p>
-          <p className="summary-value">{leagues.length}</p>
-        </div>
-      </div>
-
-      <div className="dashboard-summary">
-        <div>
           <p className="summary-label">App role</p>
           <p className="summary-value">{currentUserRole || "user"}</p>
         </div>
         <div>
-          <p className="summary-label">Pending invites</p>
-          <p className="summary-value">{invites.length}</p>
+          <p className="summary-label">Leagues</p>
+          <p className="summary-value">{leagues.length}</p>
+        </div>
+        <div>
+          <p className="summary-label">Pending requests</p>
+          <p className="summary-value">{requestedLeagueIds.length}</p>
         </div>
         <div>
           <p className="summary-label">League role</p>
@@ -343,15 +220,22 @@ function Dashboard({ user, currentUserRole }) {
           <p className="summary-label">League members</p>
           <p className="summary-value">{selectedLeague ? members.length + 1 : 0}</p>
         </div>
-        <div>
-          <p className="summary-label">Matches in league</p>
-          <p className="summary-value">{matches.length}</p>
-        </div>
       </div>
 
       {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
 
-      <InvitesCard invites={invites} onAcceptInvite={handleAcceptInvite} isSubmitting={isSaving} />
+      {currentUserRole === "admin" && selectedLeague ? (
+        <section className="setup-card">
+          <div>
+            <p className="section-label">Admin workspace</p>
+            <h2>{selectedLeague.name}</h2>
+            <p className="section-copy">
+              This is your default admin league. Use the Admin navigation to manage matches,
+              users, and join requests in one place.
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       {!leagues.length ? (
         <section className="setup-card">
@@ -359,8 +243,7 @@ function Dashboard({ user, currentUserRole }) {
             <p className="section-label">No leagues yet</p>
             <h2>You are not in a league yet</h2>
             <p className="section-copy">
-              Accept an invite from a league admin, or if you have the admin role use the Create
-              League page from the header.
+              Browse the available leagues below and request to join one.
             </p>
           </div>
         </section>
@@ -372,19 +255,6 @@ function Dashboard({ user, currentUserRole }) {
             onSelectLeague={setSelectedLeagueId}
           />
 
-          {isAdmin && selectedLeague ? (
-            <AdminPanel
-              league={selectedLeague}
-              members={members}
-              pendingRequests={pendingRequests}
-              onInviteUser={handleInviteUser}
-              onCreateMatch={handleCreateMatch}
-              onApproveRequest={handleApproveRequest}
-              onRejectRequest={handleRejectRequest}
-              isSaving={isSaving}
-            />
-          ) : null}
-
           <section className="matches-section">
             <div className="section-heading">
               <div>
@@ -394,7 +264,7 @@ function Dashboard({ user, currentUserRole }) {
               <p className="section-copy">
                 {matches.length
                   ? "Choose one winner per match. Your picks save instantly."
-                  : "No matches yet. The league admin can add the first fixture."}
+                  : "No matches yet. The admin can add the first fixture from the Admin page."}
               </p>
             </div>
 

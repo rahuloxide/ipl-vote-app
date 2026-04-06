@@ -19,13 +19,17 @@ import { db } from "../firebase";
 
 const leaguesCollection = collection(db, "leagues");
 const leagueMembersCollection = collection(db, "leagueMembers");
-const leagueInvitesCollection = collection(db, "leagueInvites");
 const leagueRequestsCollection = collection(db, "leagueRequests");
 const matchesCollection = collection(db, "matches");
 const picksCollection = collection(db, "picks");
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
+}
+
+function getDefaultLeagueName(user) {
+  const firstName = user?.displayName?.split(" ")[0] || "Admin";
+  return `${firstName}'s Admin`;
 }
 
 async function loadLeagueById(leagueId) {
@@ -59,6 +63,38 @@ export async function createLeague({ name, user }) {
   });
 
   return leagueReference.id;
+}
+
+export async function ensureDefaultAdminLeague(user) {
+  const existingLeagueQuery = query(leaguesCollection, where("createdBy", "==", user.uid));
+  const existingLeagueSnapshot = await getDocs(existingLeagueQuery);
+
+  if (!existingLeagueSnapshot.empty) {
+    const firstLeague = existingLeagueSnapshot.docs[0];
+    return {
+      id: firstLeague.id,
+      ...firstLeague.data(),
+    };
+  }
+
+  const defaultLeagueName = getDefaultLeagueName(user);
+  const leagueReference = await addDoc(leaguesCollection, {
+    name: defaultLeagueName,
+    createdBy: user.uid,
+    members: [user.uid],
+    adminUid: user.uid,
+    adminEmail: user.email,
+    createdAt: serverTimestamp(),
+  });
+
+  return {
+    id: leagueReference.id,
+    name: defaultLeagueName,
+    createdBy: user.uid,
+    members: [user.uid],
+    adminUid: user.uid,
+    adminEmail: user.email,
+  };
 }
 
 export function subscribeToUserLeagues(userId, onData, onError) {
@@ -162,53 +198,6 @@ export function subscribeToLeague(leagueId, onData, onError) {
   );
 }
 
-export function subscribeToLeagueInvites(email, onData, onError) {
-  const emailKey = normalizeEmail(email);
-  const invitesQuery = query(leagueInvitesCollection, where("emailKey", "==", emailKey));
-
-  return onSnapshot(
-    invitesQuery,
-    async (snapshot) => {
-      try {
-        const invites = await Promise.all(
-          snapshot.docs.map(async (item) => {
-            const data = item.data();
-            const league = await loadLeagueById(data.leagueId);
-
-            return {
-              id: item.id,
-              ...data,
-              leagueName: league?.name || "Unknown league",
-            };
-          })
-        );
-
-        onData(invites);
-      } catch (error) {
-        onError(error);
-      }
-    },
-    onError
-  );
-}
-
-export async function acceptLeagueInvite({ inviteId, invite, user }) {
-  await setDoc(doc(db, "leagueMembers", `${invite.leagueId}_${user.uid}`), {
-    leagueId: invite.leagueId,
-    userId: user.uid,
-    userEmail: user.email,
-    role: invite.role || "member",
-    inviteId,
-    joinedAt: serverTimestamp(),
-  });
-
-  await updateDoc(doc(db, "leagues", invite.leagueId), {
-    members: arrayUnion(user.uid),
-  });
-
-  await deleteDoc(doc(db, "leagueInvites", inviteId));
-}
-
 export function subscribeToLeagueMembers(leagueId, onData, onError) {
   const membersQuery = query(leagueMembersCollection, where("leagueId", "==", leagueId));
 
@@ -224,18 +213,6 @@ export function subscribeToLeagueMembers(leagueId, onData, onError) {
     },
     onError
   );
-}
-
-export async function inviteLeagueUser({ leagueId, email }) {
-  const normalizedEmail = normalizeEmail(email);
-
-  await setDoc(doc(db, "leagueInvites", `${leagueId}_${normalizedEmail}`), {
-    leagueId,
-    email: normalizedEmail,
-    emailKey: normalizedEmail,
-    role: "member",
-    createdAt: serverTimestamp(),
-  });
 }
 
 export function subscribeToUserLeagueRequests(userId, onData, onError) {
@@ -405,6 +382,10 @@ export async function removeLeagueMember({ leagueId, userId }) {
   });
 
   await batch.commit();
+}
+
+export async function deleteAdminLeague(leagueId) {
+  await deleteDoc(doc(db, "leagues", leagueId));
 }
 
 export function subscribeToLeaguePicks({ leagueId, userId }, onData, onError) {

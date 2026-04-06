@@ -3,7 +3,6 @@ import {
   approveLeagueRequest,
   createLeagueMatch,
   deleteLeagueMatch,
-  inviteLeagueUser,
   rejectLeagueRequest,
   removeLeagueMember,
   subscribeToLeague,
@@ -18,7 +17,6 @@ function LeagueDetailPage({ leagueId, section, user }) {
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
-  const [inviteEmail, setInviteEmail] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState("");
@@ -87,29 +85,6 @@ function LeagueDetailPage({ leagueId, section, user }) {
     () => (section === "users" ? ["users", "matches"] : ["matches", "users"]),
     [section]
   );
-
-  const handleInviteUser = async (event) => {
-    event.preventDefault();
-
-    if (!inviteEmail.trim()) {
-      return;
-    }
-
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      await inviteLeagueUser({
-        leagueId,
-        email: inviteEmail,
-      });
-      setInviteEmail("");
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to send this invite.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleMatchSubmit = async (event) => {
     event.preventDefault();
@@ -385,21 +360,10 @@ function LeagueDetailPage({ leagueId, section, user }) {
           <p className="section-label">League users</p>
           <h2>{league.name}</h2>
         </div>
-        <p className="section-copy">Invite, approve, reject, or remove users for this league.</p>
+        <p className="section-copy">
+          Review join requests and manage the members already in this admin workspace.
+        </p>
       </div>
-
-      <form className="inline-form" onSubmit={handleInviteUser}>
-        <input
-          className="text-input"
-          type="email"
-          value={inviteEmail}
-          onChange={(event) => setInviteEmail(event.target.value)}
-          placeholder="player@email.com"
-        />
-        <button className="secondary-button" type="submit" disabled={isSaving}>
-          {isSaving ? "Saving..." : "Send invite"}
-        </button>
-      </form>
 
       <div className="admin-card nested-card">
         <div>

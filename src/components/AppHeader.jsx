@@ -18,12 +18,12 @@ function AppHeader({
   return (
     <header className="app-header">
       <div>
-        <p className="eyebrow">IPL League Center</p>
-        <h1>Run a private IPL league with picks, members, and admin controls.</h1>
+        <p className="eyebrow">IPL Admin Center</p>
+        <h1>Run a private IPL league with one admin workspace and clean match controls.</h1>
         <p className="subtitle">
           {isLoggedIn
-            ? `Welcome back, ${greetingName}. Manage your league or lock in your match winners.`
-            : "Sign in with Google to create a league, invite players, and make your picks."}
+            ? `Welcome back, ${greetingName}. Manage your admin workspace or lock in your match winners.`
+            : "Sign in with Google to request league access and make your picks."}
         </p>
 
         <p className="build-stamp">Build: {buildTimestamp}</p>
@@ -41,25 +41,16 @@ function AppHeader({
 
             {currentUserRole === "admin" ? (
               <button
-                className={`nav-link ${activeView === "leagues" ? "active" : ""}`}
-                onClick={() => onChangeView("leagues")}
+                className={`nav-link ${activeView === "admin" ? "active" : ""}`}
+                onClick={() => onChangeView("admin")}
               >
-                Leagues
-              </button>
-            ) : null}
-
-            {currentUserRole === "admin" ? (
-              <button
-                className={`nav-link ${activeView === "createLeague" ? "active" : ""}`}
-                onClick={() => onChangeView("createLeague")}
-              >
-                Create League
+                Admin
               </button>
             ) : null}
 
             {currentUserRole === "admin" && hasManagedLeague ? (
               <button
-                className={`nav-link ${activeView === "leagueDetail" ? "active" : ""}`}
+                className={`nav-link ${activeView === "admin" ? "active" : ""}`}
                 onClick={onOpenUsersView}
               >
                 Users

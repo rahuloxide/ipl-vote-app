@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
-import AdminLeaguesPage from "./components/AdminLeaguesPage";
 import AppHeader from "./components/AppHeader";
 import Dashboard from "./components/Dashboard";
-import CreateLeaguePage from "./components/CreateLeaguePage";
 import LeagueDetailPage from "./components/LeagueDetailPage";
 import LoadingState from "./components/LoadingState";
 import LoginCard from "./components/LoginCard";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import { auth } from "./firebase";
-import { subscribeToAdminCreatedLeagues } from "./services/leagueService";
+import { ensureDefaultAdminLeague } from "./services/leagueService";
 import {
   ensureUserDocument,
   getCurrentUserRole,
@@ -23,7 +21,6 @@ function App() {
   const [isCurrentUserSuperAdmin, setIsCurrentUserSuperAdmin] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [activeView, setActiveView] = useState("dashboard");
-  const [adminLeagues, setAdminLeagues] = useState([]);
   const [selectedManagedLeagueId, setSelectedManagedLeagueId] = useState("");
   const [managedLeagueSection, setManagedLeagueSection] = useState("matches");
 
@@ -41,8 +38,15 @@ function App() {
             setActiveView("dashboard");
           }
 
-          if (nextUserRole !== "admin" && activeView === "createLeague") {
-            setActiveView("dashboard");
+          if (nextUserRole === "admin") {
+            const defaultLeague = await ensureDefaultAdminLeague(user);
+            setSelectedManagedLeagueId(defaultLeague.id);
+          } else {
+            setSelectedManagedLeagueId("");
+
+            if (activeView === "admin") {
+              setActiveView("dashboard");
+            }
           }
         } catch (error) {
           console.error("Unable to sync user profile", error);
@@ -51,6 +55,7 @@ function App() {
         setIsCurrentUserSuperAdmin(false);
         setCurrentUserRole(null);
         setActiveView("dashboard");
+        setSelectedManagedLeagueId("");
       }
 
       setAuthUser(user);
@@ -71,13 +76,8 @@ function App() {
         setCurrentUserRole(role);
         setIsCurrentUserSuperAdmin(role === "superadmin");
 
-        if (role !== "admin" && activeView === "createLeague") {
+        if (role !== "admin" && activeView === "admin") {
           setActiveView("dashboard");
-        }
-
-        if (role !== "admin" && (activeView === "leagues" || activeView === "leagueDetail")) {
-          setActiveView("dashboard");
-          setSelectedManagedLeagueId("");
         }
 
         if (role !== "superadmin" && activeView === "superadmin") {
@@ -94,39 +94,26 @@ function App() {
 
   useEffect(() => {
     if (currentUserRole !== "admin" || !authUser?.uid) {
-      setAdminLeagues([]);
+      setSelectedManagedLeagueId("");
       return undefined;
     }
 
-    const unsubscribe = subscribeToAdminCreatedLeagues(
-      authUser.uid,
-      (leagues) => {
-        setAdminLeagues(leagues);
+    let isActive = true;
 
-        if (!selectedManagedLeagueId && leagues.length) {
-          setSelectedManagedLeagueId(leagues[0].id);
+    ensureDefaultAdminLeague(authUser)
+      .then((league) => {
+        if (isActive) {
+          setSelectedManagedLeagueId(league.id);
         }
-      },
-      (error) => {
-        console.error("Unable to load admin leagues", error);
-      }
-    );
+      })
+      .catch((error) => {
+        console.error("Unable to load admin workspace", error);
+      });
 
-    return unsubscribe;
-  }, [authUser?.uid, currentUserRole, selectedManagedLeagueId]);
-
-  useEffect(() => {
-    if (!adminLeagues.length) {
-      setSelectedManagedLeagueId("");
-      return;
-    }
-
-    const stillExists = adminLeagues.some((league) => league.id === selectedManagedLeagueId);
-
-    if (!stillExists) {
-      setSelectedManagedLeagueId(adminLeagues[0].id);
-    }
-  }, [adminLeagues, selectedManagedLeagueId]);
+    return () => {
+      isActive = false;
+    };
+  }, [authUser, currentUserRole]);
 
   const greetingName = useMemo(() => {
     if (!authUser?.displayName) {
@@ -135,6 +122,14 @@ function App() {
 
     return authUser.displayName.split(" ")[0];
   }, [authUser]);
+
+  const handleChangeView = (nextView) => {
+    if (nextView === "admin") {
+      setManagedLeagueSection("matches");
+    }
+
+    setActiveView(nextView);
+  };
 
   return (
     <main className="app-shell">
@@ -145,11 +140,11 @@ function App() {
           isSuperAdminUser={isCurrentUserSuperAdmin}
           currentUserRole={currentUserRole}
           activeView={activeView}
-          onChangeView={setActiveView}
+          onChangeView={handleChangeView}
           hasManagedLeague={Boolean(selectedManagedLeagueId)}
           onOpenUsersView={() => {
             setManagedLeagueSection("users");
-            setActiveView("leagueDetail");
+            setActiveView("admin");
           }}
         />
 
@@ -158,25 +153,7 @@ function App() {
         ) : authUser ? (
           activeView === "superadmin" && isCurrentUserSuperAdmin ? (
             <SuperAdminDashboard />
-          ) : activeView === "createLeague" && currentUserRole === "admin" ? (
-            <CreateLeaguePage
-              user={authUser}
-              onCreated={(leagueId) => {
-                setSelectedManagedLeagueId(leagueId);
-                setManagedLeagueSection("matches");
-                setActiveView("leagueDetail");
-              }}
-            />
-          ) : activeView === "leagues" && currentUserRole === "admin" ? (
-            <AdminLeaguesPage
-              leagues={adminLeagues}
-              onOpenLeague={(leagueId) => {
-                setSelectedManagedLeagueId(leagueId);
-                setManagedLeagueSection("matches");
-                setActiveView("leagueDetail");
-              }}
-            />
-          ) : activeView === "leagueDetail" && currentUserRole === "admin" ? (
+          ) : activeView === "admin" && currentUserRole === "admin" ? (
             <LeagueDetailPage
               leagueId={selectedManagedLeagueId}
               section={managedLeagueSection}
