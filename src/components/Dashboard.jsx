@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import AdminPanel from "./AdminPanel";
-import CreateLeagueCard from "./CreateLeagueCard";
 import InvitesCard from "./InvitesCard";
 import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
 import {
   acceptLeagueInvite,
-  createLeague,
   createLeagueMatch,
   getLeagueRole,
   inviteLeagueUser,
@@ -19,7 +17,7 @@ import {
   subscribeToUserLeagues,
 } from "../services/leagueService";
 
-function Dashboard({ user }) {
+function Dashboard({ user, currentUserRole }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -134,23 +132,6 @@ function Dashboard({ user }) {
 
   const isAdmin = selectedLeagueRole === "admin";
 
-  const handleCreateLeague = async (leagueName) => {
-    setErrorMessage("");
-    setIsSaving(true);
-
-    try {
-      const newLeagueId = await createLeague({
-        name: leagueName,
-        user,
-      });
-      setSelectedLeagueId(newLeagueId);
-    } catch (error) {
-      setErrorMessage(error.message || "Unable to create your league.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const handleAcceptInvite = async (invite) => {
     setErrorMessage("");
     setIsSaving(true);
@@ -243,12 +224,16 @@ function Dashboard({ user }) {
 
       <div className="dashboard-summary">
         <div>
-          <p className="summary-label">Role</p>
-          <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
+          <p className="summary-label">App role</p>
+          <p className="summary-value">{currentUserRole || "user"}</p>
         </div>
         <div>
           <p className="summary-label">Pending invites</p>
           <p className="summary-value">{invites.length}</p>
+        </div>
+        <div>
+          <p className="summary-label">League role</p>
+          <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
         </div>
         <div>
           <p className="summary-label">Matches in league</p>
@@ -261,7 +246,16 @@ function Dashboard({ user }) {
       <InvitesCard invites={invites} onAcceptInvite={handleAcceptInvite} isSubmitting={isSaving} />
 
       {!leagues.length ? (
-        <CreateLeagueCard onCreateLeague={handleCreateLeague} isSubmitting={isSaving} />
+        <section className="setup-card">
+          <div>
+            <p className="section-label">No leagues yet</p>
+            <h2>You are not in a league yet</h2>
+            <p className="section-copy">
+              Accept an invite from a league admin, or if you have the admin role use the Create
+              League page from the header.
+            </p>
+          </div>
+        </section>
       ) : (
         <>
           <LeagueSwitcher

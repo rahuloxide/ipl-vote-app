@@ -37,13 +37,15 @@ export async function ensureUserDocument(user) {
 
   const existingUser = userSnapshot.data();
 
-  if (existingUser.role !== assignedRole) {
+  const nextRole = assignedRole === "superadmin" ? "superadmin" : existingUser.role || "user";
+
+  if (existingUser.role !== nextRole) {
     await setDoc(
       userReference,
       {
         uid: user.uid,
         email: user.email,
-        role: assignedRole,
+        role: nextRole,
       },
       { merge: true }
     );
@@ -51,7 +53,7 @@ export async function ensureUserDocument(user) {
     return {
       id: userSnapshot.id,
       ...existingUser,
-      role: assignedRole,
+      role: nextRole,
     };
   }
 
@@ -80,6 +82,21 @@ export async function getCurrentUserRole() {
 export async function isSuperAdmin() {
   const role = await getCurrentUserRole();
   return role === "superadmin";
+}
+
+export function subscribeToCurrentUserRole(userId, onData, onError) {
+  return onSnapshot(
+    doc(db, "users", userId),
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onData(null);
+        return;
+      }
+
+      onData(snapshot.data().role || "user");
+    },
+    onError
+  );
 }
 
 export function subscribeToAllUsers(onData, onError) {

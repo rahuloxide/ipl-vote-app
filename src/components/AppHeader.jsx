@@ -1,7 +1,14 @@
 import { signOut } from "firebase/auth";
 import { auth } from "../firebase";
 
-function AppHeader({ isLoggedIn, greetingName, isSuperAdminUser, activeView, onChangeView }) {
+function AppHeader({
+  isLoggedIn,
+  greetingName,
+  isSuperAdminUser,
+  currentUserRole,
+  activeView,
+  onChangeView,
+}) {
   return (
     <header className="app-header">
       <div>
@@ -18,6 +25,15 @@ function AppHeader({ isLoggedIn, greetingName, isSuperAdminUser, activeView, onC
 
       {isLoggedIn ? (
         <div className="header-actions">
+          {currentUserRole === "admin" ? (
+            <button
+              className="secondary-button"
+              onClick={() => onChangeView(activeView === "createLeague" ? "dashboard" : "createLeague")}
+            >
+              {activeView === "createLeague" ? "Open Main App" : "Create League"}
+            </button>
+          ) : null}
+
           {isSuperAdminUser ? (
             <button
               className="secondary-button"

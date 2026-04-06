@@ -1,4 +1,5 @@
 import {
+  arrayUnion,
   addDoc,
   collection,
   deleteDoc,
@@ -39,6 +40,8 @@ async function loadLeagueById(leagueId) {
 export async function createLeague({ name, user }) {
   const leagueReference = await addDoc(leaguesCollection, {
     name: name.trim(),
+    createdBy: user.uid,
+    members: [user.uid],
     adminUid: user.uid,
     adminEmail: user.email,
     createdAt: serverTimestamp(),
@@ -132,6 +135,10 @@ export async function acceptLeagueInvite({ inviteId, invite, user }) {
     role: invite.role || "member",
     inviteId,
     joinedAt: serverTimestamp(),
+  });
+
+  await updateDoc(doc(db, "leagues", invite.leagueId), {
+    members: arrayUnion(user.uid),
   });
 
   await deleteDoc(doc(db, "leagueInvites", inviteId));
