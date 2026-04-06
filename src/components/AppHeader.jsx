@@ -1,6 +1,3 @@
-import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
-
 const buildTimestamp = __BUILD_TIMESTAMP__;
 
 function AppHeader({
@@ -39,10 +36,19 @@ function AppHeader({
 
             {currentUserRole === "admin" ? (
               <button
-                className={`nav-link ${activeView === "admin" ? "active" : ""}`}
-                onClick={() => onChangeView("admin")}
+                className={`nav-link ${activeView === "league-management" ? "active" : ""}`}
+                onClick={() => onChangeView("league-management")}
               >
-                Admin
+                League Management
+              </button>
+            ) : null}
+
+            {currentUserRole === "admin" ? (
+              <button
+                className={`nav-link ${activeView === "league" ? "active" : ""}`}
+                onClick={() => onChangeView("league")}
+              >
+                League
               </button>
             ) : null}
 
@@ -58,13 +64,6 @@ function AppHeader({
         ) : null}
       </div>
 
-      {isLoggedIn ? (
-        <div className="header-actions">
-          <button className="secondary-button" onClick={() => signOut(auth)}>
-            Sign out
-          </button>
-        </div>
-      ) : null}
     </header>
   );
 }

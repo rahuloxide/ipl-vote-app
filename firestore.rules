@@ -115,11 +115,21 @@ service cloud.firestore {
     }
 
     match /picks/{pickId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isLeagueAdmin(resource.data.leagueId)
+        );
       allow create, update: if signedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.userEmail == request.auth.token.email
         && isLeagueMember(request.resource.data.leagueId);
+    }
+
+    match /leagueScores/{scoreId} {
+      allow read: if signedIn() && isLeagueMember(resource.data.leagueId);
+      allow create, update: if signedIn() && isLeagueAdmin(request.resource.data.leagueId);
+      allow delete: if signedIn() && isLeagueAdmin(resource.data.leagueId);
     }
   }
 }

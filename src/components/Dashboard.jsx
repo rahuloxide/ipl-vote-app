@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { signOut } from "firebase/auth";
 import LeagueCatalog from "./LeagueCatalog";
 import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
+import { auth } from "../firebase";
 import {
   getLeagueRole,
   requestToJoinLeague,
@@ -195,47 +197,66 @@ function Dashboard({ user, currentUserRole }) {
 
   return (
     <section className="dashboard">
-      <div className="dashboard-summary">
-        <div>
-          <p className="summary-label">Signed in as</p>
-          <p className="summary-value">{user.email}</p>
-        </div>
-        <div>
-          <p className="summary-label">App role</p>
-          <p className="summary-value">{currentUserRole || "user"}</p>
-        </div>
-        <div>
-          <p className="summary-label">Leagues</p>
-          <p className="summary-value">{leagues.length}</p>
-        </div>
-        <div>
-          <p className="summary-label">Pending requests</p>
-          <p className="summary-value">{requestedLeagueIds.length}</p>
-        </div>
-        <div>
-          <p className="summary-label">League role</p>
-          <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
-        </div>
-        <div>
-          <p className="summary-label">League members</p>
-          <p className="summary-value">{selectedLeague ? members.length + 1 : 0}</p>
-        </div>
-      </div>
-
-      {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
-
-      {currentUserRole === "admin" && selectedLeague ? (
-        <section className="setup-card">
+      <section className="home-topbar">
+        <section className="switcher-card home-league-card">
           <div>
-            <p className="section-label">Admin workspace</p>
-            <h2>{selectedLeague.name}</h2>
+            <p className="section-label">League selection</p>
+            <h2>Choose your active league</h2>
             <p className="section-copy">
-              This is your default admin league. Use the Admin navigation to manage matches,
-              users, and join requests in one place.
+              Pick the league you want to vote in, then review the fixtures below and lock in your picks.
             </p>
           </div>
+
+          {leagues.length ? (
+            <select
+              className="select-input"
+              value={selectedLeagueId}
+              onChange={(event) => setSelectedLeagueId(event.target.value)}
+            >
+              {leagues.map((league) => (
+                <option key={league.id} value={league.id}>
+                  {league.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </section>
-      ) : null}
+
+        <aside className="account-panel">
+          <div className="account-panel-grid">
+            <div>
+              <p className="summary-label">Signed in as</p>
+              <p className="summary-value">{user.email}</p>
+            </div>
+            <div>
+              <p className="summary-label">App role</p>
+              <p className="summary-value">{currentUserRole || "user"}</p>
+            </div>
+            <div>
+              <p className="summary-label">Leagues</p>
+              <p className="summary-value">{leagues.length}</p>
+            </div>
+            <div>
+              <p className="summary-label">Pending requests</p>
+              <p className="summary-value">{requestedLeagueIds.length}</p>
+            </div>
+            <div>
+              <p className="summary-label">League role</p>
+              <p className="summary-value">{selectedLeagueRole || "No league yet"}</p>
+            </div>
+            <div>
+              <p className="summary-label">League members</p>
+              <p className="summary-value">{selectedLeague ? members.length + 1 : 0}</p>
+            </div>
+          </div>
+
+          <button className="signout-button" onClick={() => signOut(auth)} type="button">
+            Sign out
+          </button>
+        </aside>
+      </section>
+
+      {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
 
       {!leagues.length ? (
         <section className="setup-card">
@@ -249,12 +270,6 @@ function Dashboard({ user, currentUserRole }) {
         </section>
       ) : (
         <>
-          <LeagueSwitcher
-            leagues={leagues}
-            selectedLeagueId={selectedLeagueId}
-            onSelectLeague={setSelectedLeagueId}
-          />
-
           <section className="matches-section">
             <div className="section-heading">
               <div>

@@ -1,14 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   approveLeagueRequest,
   createLeagueMatch,
   createLeagueMatchesBulk,
   deleteLeagueMatch,
+  finalizeLeagueMatch,
   rejectLeagueRequest,
+  renameLeague,
   removeLeagueMember,
+  subscribeToAllLeaguePicks,
   subscribeToLeague,
   subscribeToLeagueMatches,
   subscribeToLeagueMembers,
+  subscribeToLeagueScores,
   subscribeToPendingLeagueRequests,
   updateLeagueMatch,
 } from "../services/leagueService";
@@ -31,6 +35,15 @@ function formatDateTime(dateTime) {
     hour: "numeric",
     minute: "2-digit",
   });
+}
+
+function formatMoney(value) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value || 0));
 }
 
 function toDateTimeInputValue(dateTime) {
@@ -86,11 +99,13 @@ function parseCsvLine(line) {
   return values;
 }
 
-function LeagueDetailPage({ leagueId, user }) {
+function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   const [league, setLeague] = useState(null);
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const [allPicks, setAllPicks] = useState([]);
+  const [scores, setScores] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [editingMatchId, setEditingMatchId] = useState("");
@@ -101,6 +116,11 @@ function LeagueDetailPage({ leagueId, user }) {
     option1: "",
     option2: "",
   });
+  const [leagueName, setLeagueName] = useState("");
+
+  useEffect(() => {
+    setLeagueName(league?.name || "");
+  }, [league?.name]);
 
   useEffect(() => {
     if (!leagueId) {
@@ -147,11 +167,33 @@ function LeagueDetailPage({ leagueId, user }) {
       }
     );
 
+    const unsubscribeAllPicks = subscribeToAllLeaguePicks(
+      leagueId,
+      (nextPicks) => {
+        setAllPicks(nextPicks);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league votes.");
+      }
+    );
+
+    const unsubscribeScores = subscribeToLeagueScores(
+      leagueId,
+      (nextScores) => {
+        setScores(nextScores);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league scores.");
+      }
+    );
+
     return () => {
       unsubscribeLeague();
       unsubscribeMatches();
       unsubscribeMembers();
       unsubscribePendingRequests();
+      unsubscribeAllPicks();
+      unsubscribeScores();
     };
   }, [leagueId]);
 
@@ -292,6 +334,23 @@ function LeagueDetailPage({ leagueId, user }) {
     }
   };
 
+  const handleMarkWinner = async (match, winningOption) => {
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await finalizeLeagueMatch({
+        leagueId,
+        matchId: match.id,
+        winningOption,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to settle this match.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleRejectRequest = async (request) => {
     setErrorMessage("");
     setIsSaving(true);
@@ -345,12 +404,66 @@ function LeagueDetailPage({ leagueId, user }) {
     }
   };
 
+  const handleRenameLeague = async (event) => {
+    event.preventDefault();
+
+    const trimmedName = leagueName.trim();
+
+    if (!league?.id || !trimmedName || trimmedName === league.name) {
+      return;
+    }
+
+    setErrorMessage("");
+    setIsSaving(true);
+
+    try {
+      await renameLeague({
+        leagueId: league.id,
+        name: trimmedName,
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to rename this league.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const updateField = (fieldName, value) => {
     setFormValues((currentValues) => ({
       ...currentValues,
       [fieldName]: value,
     }));
   };
+
+  const voteRows = useMemo(() => {
+    const matchLookup = matches.reduce((accumulator, match) => {
+      accumulator[match.id] = match;
+      return accumulator;
+    }, {});
+
+    return allPicks
+      .map((pick) => {
+        const match = matchLookup[pick.matchId];
+        return {
+          id: pick.id,
+          matchName:
+            match?.matchName ||
+            `${match?.option1 || match?.teamA || "Match"} vs ${match?.option2 || match?.teamB || ""}`,
+          userEmail: pick.userEmail,
+          selectedTeam: pick.selectedTeam,
+          outcome: pick.outcome || (match?.winningOption ? "pending settlement" : "open"),
+          scoreDelta: pick.scoreDelta ?? 0,
+        };
+      })
+      .sort((left, right) => {
+        const matchCompare = left.matchName.localeCompare(right.matchName);
+        if (matchCompare !== 0) {
+          return matchCompare;
+        }
+
+        return left.userEmail.localeCompare(right.userEmail);
+      });
+  }, [allPicks, matches]);
 
   if (!league) {
     return (
@@ -364,6 +477,38 @@ function LeagueDetailPage({ leagueId, user }) {
     <section className="league-detail-page">
       {errorMessage ? <p className="inline-error">{errorMessage}</p> : null}
 
+      {activeTab === "management" ? (
+        <>
+      <section className="admin-card">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Admin workspace</p>
+            <h2>{league.name}</h2>
+          </div>
+          <p className="section-copy">
+            Update the league name and manage setup details from here.
+          </p>
+        </div>
+
+        <form className="rename-league-form" onSubmit={handleRenameLeague}>
+          <input
+            className="text-input"
+            type="text"
+            value={leagueName}
+            onChange={(event) => setLeagueName(event.target.value)}
+            placeholder="League name"
+            disabled={isSaving}
+          />
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={isSaving || !leagueName.trim() || leagueName.trim() === league.name}
+          >
+            {isSaving ? "Saving..." : "Rename league"}
+          </button>
+        </form>
+      </section>
+
       <section className="admin-card">
         <div className="section-heading">
           <div>
@@ -371,7 +516,7 @@ function LeagueDetailPage({ leagueId, user }) {
             <h2>{league.name}</h2>
           </div>
           <p className="section-copy">
-            All matches are shown in a simple table. Add one match at a time or upload a CSV.
+            Add, edit, delete, or bulk upload matches for this league.
           </p>
         </div>
 
@@ -507,6 +652,174 @@ function LeagueDetailPage({ leagueId, user }) {
         </div>
       </section>
 
+        </>
+      ) : null}
+
+      {activeTab === "league" ? (
+        <>
+      <section className="admin-card">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">League overview</p>
+            <h2>{league.name}</h2>
+          </div>
+          <p className="section-copy">
+            Review results, balances, and voting performance for this league.
+          </p>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Match results</p>
+            <h2>{league.name}</h2>
+          </div>
+          <p className="section-copy">
+            Mark winners after each match and settle balances for the players.
+          </p>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="simple-table">
+            <thead>
+              <tr>
+                <th>Match Name</th>
+                <th>DateTime</th>
+                <th>Points</th>
+                <th>Option1</th>
+                <th>Option2</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matches.length ? (
+                matches.map((match) => (
+                  <tr key={match.id}>
+                    <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
+                    <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
+                    <td>{match.points ?? "-"}</td>
+                    <td>{match.option1 || match.teamA || "-"}</td>
+                    <td>{match.option2 || match.teamB || "-"}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button
+                          className="link-button"
+                          onClick={() => handleMarkWinner(match, match.option1 || match.teamA)}
+                          disabled={isSaving}
+                        >
+                          Won: {match.option1 || match.teamA}
+                        </button>
+                        <button
+                          className="link-button"
+                          onClick={() => handleMarkWinner(match, match.option2 || match.teamB)}
+                          disabled={isSaving}
+                        >
+                          Won: {match.option2 || match.teamB}
+                        </button>
+                      </div>
+                      {match.winningOption ? (
+                        <p className="inline-meta">Result: {match.winningOption}</p>
+                      ) : (
+                        <p className="inline-meta">Result pending</p>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="6">No matches added yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Scores</p>
+            <h2>{league.name}</h2>
+          </div>
+          <p className="section-copy">
+            Each player risks a share of the $40 season fee across 74 match units. Losers fund the winners, and no-vote players stay at $0.00 for that match.
+          </p>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="simple-table">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Total Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {scores.length ? (
+                scores.map((score) => (
+                  <tr key={score.id}>
+                    <td>{score.userEmail}</td>
+                    <td>{formatMoney(score.totalPoints ?? 0)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="2">No scores yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="admin-card">
+        <div className="section-heading">
+          <div>
+            <p className="section-label">Votes</p>
+            <h2>{league.name}</h2>
+          </div>
+          <p className="section-copy">Track every player vote and the score impact after settlement.</p>
+        </div>
+
+        <div className="table-wrapper">
+          <table className="simple-table">
+            <thead>
+              <tr>
+                <th>Match</th>
+                <th>User</th>
+                <th>Pick</th>
+                <th>Outcome</th>
+                <th>Payout</th>
+              </tr>
+            </thead>
+            <tbody>
+              {voteRows.length ? (
+                voteRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>{row.matchName}</td>
+                    <td>{row.userEmail}</td>
+                    <td>{row.selectedTeam}</td>
+                    <td>{row.outcome}</td>
+                    <td>{formatMoney(row.scoreDelta)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="5">No votes yet.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+        </>
+      ) : null}
+
+      {activeTab === "management" ? (
+        <>
+
       <section className="admin-card">
         <div className="section-heading">
           <div>
@@ -580,6 +893,9 @@ function LeagueDetailPage({ leagueId, user }) {
           ))}
         </div>
       </section>
+
+        </>
+      ) : null}
     </section>
   );
 }

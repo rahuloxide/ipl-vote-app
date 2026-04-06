@@ -5,6 +5,7 @@ function MatchCard({ match, selectedTeam, onPick, isSaving }) {
   const matchTitle = match.matchName || `${option1} vs ${option2}`;
   const dateTime = match.dateTime || match.kickoff;
   const points = match.points ?? null;
+  const isSettled = Boolean(match.winningOption);
 
   return (
     <article className="match-card">
@@ -15,6 +16,8 @@ function MatchCard({ match, selectedTeam, onPick, isSaving }) {
 
       <h3>{matchTitle}</h3>
 
+      {isSettled ? <p className="inline-meta">Winner: {match.winningOption}</p> : null}
+
       <div className="match-actions">
         {teamOptions.map((team) => {
           const isActive = selectedTeam === team;
@@ -24,9 +27,15 @@ function MatchCard({ match, selectedTeam, onPick, isSaving }) {
               key={team}
               className={`pick-button ${isActive ? "active" : ""}`}
               onClick={() => onPick(match.id, team)}
-              disabled={isSaving}
+              disabled={isSaving || isSettled}
             >
-              {isActive ? `Selected: ${team}` : `Pick ${team}`}
+              {isSettled
+                ? team === match.winningOption
+                  ? `Winner: ${team}`
+                  : team
+                : isActive
+                  ? `Selected: ${team}`
+                  : `Pick ${team}`}
             </button>
           );
         })}

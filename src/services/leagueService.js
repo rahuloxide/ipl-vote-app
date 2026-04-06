@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   onSnapshot,
   query,
   serverTimestamp,
@@ -22,9 +23,16 @@ const leagueMembersCollection = collection(db, "leagueMembers");
 const leagueRequestsCollection = collection(db, "leagueRequests");
 const matchesCollection = collection(db, "matches");
 const picksCollection = collection(db, "picks");
+const leagueScoresCollection = collection(db, "leagueScores");
+const SEASON_ENTRY_FEE = 40;
+const TOTAL_SEASON_MATCH_UNITS = 74;
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
+}
+
+function scoreDocumentId(leagueId, userId) {
+  return `${leagueId}_${userId}`;
 }
 
 function getDefaultLeagueName(user) {
@@ -62,6 +70,14 @@ export async function createLeague({ name, user }) {
     createdAt: serverTimestamp(),
   });
 
+  await setDoc(doc(db, "leagueScores", scoreDocumentId(leagueReference.id, user.uid)), {
+    leagueId: leagueReference.id,
+    userId: user.uid,
+    userEmail: user.email,
+    totalPoints: 0,
+    updatedAt: serverTimestamp(),
+  });
+
   return leagueReference.id;
 }
 
@@ -85,6 +101,14 @@ export async function ensureDefaultAdminLeague(user) {
     adminUid: user.uid,
     adminEmail: user.email,
     createdAt: serverTimestamp(),
+  });
+
+  await setDoc(doc(db, "leagueScores", scoreDocumentId(leagueReference.id, user.uid)), {
+    leagueId: leagueReference.id,
+    userId: user.uid,
+    userEmail: user.email,
+    totalPoints: 0,
+    updatedAt: serverTimestamp(),
   });
 
   return {
@@ -297,6 +321,18 @@ export async function approveLeagueRequest({ leagueId, requestId, userId, userEm
     resolvedAt: serverTimestamp(),
   });
 
+  batch.set(
+    doc(db, "leagueScores", scoreDocumentId(leagueId, userId)),
+    {
+      leagueId,
+      userId,
+      userEmail,
+      totalPoints: 0,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
   await batch.commit();
 }
 
@@ -411,6 +447,7 @@ export async function removeLeagueMember({ leagueId, userId }) {
   const batch = writeBatch(db);
 
   batch.delete(doc(db, "leagueMembers", `${leagueId}_${userId}`));
+  batch.delete(doc(db, "leagueScores", scoreDocumentId(leagueId, userId)));
   batch.update(doc(db, "leagues", leagueId), {
     members: arrayRemove(userId),
   });
@@ -444,6 +481,49 @@ export function subscribeToLeaguePicks({ leagueId, userId }, onData, onError) {
   );
 }
 
+export function subscribeToAllLeaguePicks(leagueId, onData, onError) {
+  const picksQuery = query(picksCollection, where("leagueId", "==", leagueId));
+
+  return onSnapshot(
+    picksQuery,
+    (snapshot) => {
+      const picks = snapshot.docs.map((item) => ({
+        id: item.id,
+        ...item.data(),
+      }));
+
+      onData(picks);
+    },
+    onError
+  );
+}
+
+export function subscribeToLeagueScores(leagueId, onData, onError) {
+  const scoresQuery = query(leagueScoresCollection, where("leagueId", "==", leagueId));
+
+  return onSnapshot(
+    scoresQuery,
+    (snapshot) => {
+      const scores = snapshot.docs
+        .map((item) => ({
+          id: item.id,
+          ...item.data(),
+        }))
+        .sort((left, right) => {
+          const pointDiff = (right.totalPoints || 0) - (left.totalPoints || 0);
+          if (pointDiff !== 0) {
+            return pointDiff;
+          }
+
+          return (left.userEmail || "").localeCompare(right.userEmail || "");
+        });
+
+      onData(scores);
+    },
+    onError
+  );
+}
+
 export async function saveLeaguePick({ leagueId, matchId, selectedTeam, userId, userEmail }) {
   await setDoc(doc(db, "picks", `${leagueId}_${matchId}_${userId}`), {
     leagueId,
@@ -453,6 +533,101 @@ export async function saveLeaguePick({ leagueId, matchId, selectedTeam, userId, 
     userEmail,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) {
+  const matchReference = doc(db, "matches", matchId);
+  const matchSnapshot = await getDoc(matchReference);
+
+  if (!matchSnapshot.exists()) {
+    throw new Error("Match not found.");
+  }
+
+  const matchData = matchSnapshot.data();
+  const option1 = matchData.option1 || matchData.teamA;
+  const option2 = matchData.option2 || matchData.teamB;
+
+  if (![option1, option2].includes(winningOption)) {
+    throw new Error("Winner must be one of the match options.");
+  }
+
+  const picksSnapshot = await getDocs(
+    query(
+      picksCollection,
+      where("leagueId", "==", leagueId),
+      where("matchId", "==", matchId)
+    )
+  );
+
+  const picks = picksSnapshot.docs
+    .map((item) => ({
+      id: item.id,
+      ref: item.ref,
+      ...item.data(),
+    }))
+    .sort((left, right) => (left.userId || "").localeCompare(right.userId || ""));
+
+  const winners = picks.filter((pick) => pick.selectedTeam === winningOption);
+  const losers = picks.filter((pick) => pick.selectedTeam !== winningOption);
+  const matchUnits = Math.max(Number(matchData.points || 1), 1);
+  const stakePerPlayerCents = Math.round((SEASON_ENTRY_FEE / TOTAL_SEASON_MATCH_UNITS) * 100 * matchUnits);
+
+  const deltasByPickId = new Map();
+
+  if (winners.length && losers.length) {
+    const winnerPool = losers.length * stakePerPlayerCents;
+    const baseWinnerShare = Math.floor(winnerPool / winners.length);
+    let remainder = winnerPool - baseWinnerShare * winners.length;
+
+    winners.forEach((pick) => {
+      const extraCent = remainder > 0 ? 1 : 0;
+      deltasByPickId.set(pick.id, (baseWinnerShare + extraCent) / 100);
+      remainder -= extraCent;
+    });
+
+    losers.forEach((pick) => {
+      deltasByPickId.set(pick.id, -stakePerPlayerCents / 100);
+    });
+  } else {
+    picks.forEach((pick) => {
+      deltasByPickId.set(pick.id, 0);
+    });
+  }
+
+  const batch = writeBatch(db);
+
+  batch.update(matchReference, {
+    winningOption,
+    settledAt: serverTimestamp(),
+  });
+
+  picks.forEach((pick) => {
+    const previousDelta = Number(pick.scoreDelta || 0);
+    const nextDelta = deltasByPickId.get(pick.id) || 0;
+    const scoreAdjustment = nextDelta - previousDelta;
+    const outcome = pick.selectedTeam === winningOption ? "won" : "lost";
+
+    batch.set(
+      doc(db, "leagueScores", scoreDocumentId(leagueId, pick.userId)),
+      {
+        leagueId,
+        userId: pick.userId,
+        userEmail: pick.userEmail,
+        totalPoints: increment(scoreAdjustment),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    batch.update(pick.ref, {
+      scoreDelta: nextDelta,
+      outcome,
+      winningOption,
+      settledAt: serverTimestamp(),
+    });
+  });
+
+  await batch.commit();
 }
 
 export async function getLeagueRole({ leagueId, userId }) {

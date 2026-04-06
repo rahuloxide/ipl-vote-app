@@ -22,6 +22,7 @@ function App() {
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedManagedLeagueId, setSelectedManagedLeagueId] = useState("");
+  const isAdminView = activeView === "league-management" || activeView === "league";
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -43,7 +44,7 @@ function App() {
           } else {
             setSelectedManagedLeagueId("");
 
-            if (activeView === "admin") {
+            if (isAdminView) {
               setActiveView("dashboard");
             }
           }
@@ -62,7 +63,7 @@ function App() {
     });
 
     return unsubscribe;
-  }, []);
+  }, [activeView, isAdminView]);
 
   useEffect(() => {
     if (!authUser?.uid) {
@@ -75,7 +76,7 @@ function App() {
         setCurrentUserRole(role);
         setIsCurrentUserSuperAdmin(role === "superadmin");
 
-        if (role !== "admin" && activeView === "admin") {
+        if (role !== "admin" && isAdminView) {
           setActiveView("dashboard");
         }
 
@@ -89,7 +90,7 @@ function App() {
     );
 
     return unsubscribe;
-  }, [activeView, authUser?.uid]);
+  }, [activeView, authUser?.uid, isAdminView]);
 
   useEffect(() => {
     if (currentUserRole !== "admin" || !authUser?.uid) {
@@ -139,10 +140,11 @@ function App() {
         ) : authUser ? (
           activeView === "superadmin" && isCurrentUserSuperAdmin ? (
             <SuperAdminDashboard />
-          ) : activeView === "admin" && currentUserRole === "admin" ? (
+          ) : isAdminView && currentUserRole === "admin" ? (
             <LeagueDetailPage
               leagueId={selectedManagedLeagueId}
               user={authUser}
+              activeTab={activeView === "league" ? "league" : "management"}
             />
           ) : (
             <Dashboard user={authUser} currentUserRole={currentUserRole} />
