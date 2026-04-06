@@ -19,11 +19,11 @@ function AppHeader({
     <header className="app-header">
       <div>
         <p className="eyebrow">IPL Admin Center</p>
-        <h1>Run a private IPL league with one admin workspace and clean match controls.</h1>
+        <h1>Manage your IPL league.</h1>
         <p className="subtitle">
           {isLoggedIn
-            ? `Welcome back, ${greetingName}. Manage your admin workspace or lock in your match winners.`
-            : "Sign in with Google to request league access and make your picks."}
+            ? `Welcome back, ${greetingName}. Manage matches, members, and picks in one place.`
+            : "Sign in to join a league or manage one as an admin."}
         </p>
 
         <p className="build-stamp">Build: {buildTimestamp}</p>
