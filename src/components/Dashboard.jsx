@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { signOut } from "firebase/auth";
 import LeagueCatalog from "./LeagueCatalog";
-import LeagueSwitcher from "./LeagueSwitcher";
 import LoadingState from "./LoadingState";
 import MatchCard from "./MatchCard";
 import { auth } from "../firebase";
@@ -17,14 +16,13 @@ import {
   subscribeToUserLeagues,
 } from "../services/leagueService";
 
-function Dashboard({ user, currentUserRole }) {
+function Dashboard({ user, currentUserRole, selectedLeagueId }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [leagues, setLeagues] = useState([]);
   const [allLeagues, setAllLeagues] = useState([]);
   const [leagueRequests, setLeagueRequests] = useState([]);
-  const [selectedLeagueId, setSelectedLeagueId] = useState("");
   const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
@@ -68,19 +66,6 @@ function Dashboard({ user, currentUserRole }) {
       unsubscribeLeagueRequests();
     };
   }, [user.uid]);
-
-  useEffect(() => {
-    if (!leagues.length) {
-      setSelectedLeagueId("");
-      return;
-    }
-
-    const selectedLeagueStillExists = leagues.some((league) => league.id === selectedLeagueId);
-
-    if (!selectedLeagueStillExists) {
-      setSelectedLeagueId(leagues[0].id);
-    }
-  }, [leagues, selectedLeagueId]);
 
   useEffect(() => {
     if (!selectedLeagueId) {
@@ -198,30 +183,6 @@ function Dashboard({ user, currentUserRole }) {
   return (
     <section className="dashboard">
       <section className="home-topbar">
-        <section className="switcher-card home-league-card">
-          <div>
-            <p className="section-label">League selection</p>
-            <h2>Choose your active league</h2>
-            <p className="section-copy">
-              Pick the league you want to vote in, then review the fixtures below and lock in your picks.
-            </p>
-          </div>
-
-          {leagues.length ? (
-            <select
-              className="select-input"
-              value={selectedLeagueId}
-              onChange={(event) => setSelectedLeagueId(event.target.value)}
-            >
-              {leagues.map((league) => (
-                <option key={league.id} value={league.id}>
-                  {league.name}
-                </option>
-              ))}
-            </select>
-          ) : null}
-        </section>
-
         <aside className="account-panel">
           <div className="account-panel-grid">
             <div>

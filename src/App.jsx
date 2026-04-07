@@ -7,7 +7,7 @@ import LoadingState from "./components/LoadingState";
 import LoginCard from "./components/LoginCard";
 import SuperAdminDashboard from "./components/SuperAdminDashboard";
 import { auth } from "./firebase";
-import { ensureDefaultAdminLeague } from "./services/leagueService";
+import { ensureDefaultAdminLeague, subscribeToUserLeagues } from "./services/leagueService";
 import {
   ensureUserDocument,
   getCurrentUserRole,
@@ -22,6 +22,8 @@ function App() {
   const [currentUserRole, setCurrentUserRole] = useState(null);
   const [activeView, setActiveView] = useState("dashboard");
   const [selectedManagedLeagueId, setSelectedManagedLeagueId] = useState("");
+  const [homeLeagues, setHomeLeagues] = useState([]);
+  const [selectedHomeLeagueId, setSelectedHomeLeagueId] = useState("");
   const isAdminView = activeView === "league-management" || activeView === "league";
 
   useEffect(() => {
@@ -93,6 +95,34 @@ function App() {
   }, [activeView, authUser?.uid, isAdminView]);
 
   useEffect(() => {
+    if (!authUser?.uid) {
+      setHomeLeagues([]);
+      setSelectedHomeLeagueId("");
+      return undefined;
+    }
+
+    const unsubscribe = subscribeToUserLeagues(
+      authUser.uid,
+      (nextLeagues) => {
+        setHomeLeagues(nextLeagues);
+        setSelectedHomeLeagueId((currentLeagueId) => {
+          if (!nextLeagues.length) {
+            return "";
+          }
+
+          const currentLeagueStillExists = nextLeagues.some((league) => league.id === currentLeagueId);
+          return currentLeagueStillExists ? currentLeagueId : nextLeagues[0].id;
+        });
+      },
+      (error) => {
+        console.error("Unable to load home leagues", error);
+      }
+    );
+
+    return unsubscribe;
+  }, [authUser?.uid]);
+
+  useEffect(() => {
     if (currentUserRole !== "admin" || !authUser?.uid) {
       setSelectedManagedLeagueId("");
       return undefined;
@@ -133,6 +163,9 @@ function App() {
           currentUserRole={currentUserRole}
           activeView={activeView}
           onChangeView={setActiveView}
+          homeLeagues={homeLeagues}
+          selectedHomeLeagueId={selectedHomeLeagueId}
+          onSelectHomeLeague={setSelectedHomeLeagueId}
         />
 
         {isAuthLoading ? (
@@ -147,7 +180,11 @@ function App() {
               activeTab={activeView === "league" ? "league" : "management"}
             />
           ) : (
-            <Dashboard user={authUser} currentUserRole={currentUserRole} />
+            <Dashboard
+              user={authUser}
+              currentUserRole={currentUserRole}
+              selectedLeagueId={selectedHomeLeagueId}
+            />
           )
         ) : (
           <LoginCard />

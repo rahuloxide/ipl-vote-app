@@ -7,8 +7,12 @@ function AppHeader({
   currentUserRole,
   activeView,
   onChangeView,
+  homeLeagues,
+  selectedHomeLeagueId,
+  onSelectHomeLeague,
 }) {
   const showNavigation = isLoggedIn;
+  const showHomeLeagueSelector = activeView === "dashboard" && homeLeagues?.length;
 
   return (
     <header className="app-header">
@@ -33,6 +37,23 @@ function AppHeader({
             >
               Home
             </button>
+
+            {showHomeLeagueSelector ? (
+              <label className="nav-league-picker">
+                <span className="nav-league-label">League</span>
+                <select
+                  className="nav-league-select"
+                  value={selectedHomeLeagueId}
+                  onChange={(event) => onSelectHomeLeague(event.target.value)}
+                >
+                  {homeLeagues.map((league) => (
+                    <option key={league.id} value={league.id}>
+                      {league.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null}
 
             {currentUserRole === "admin" ? (
               <button
