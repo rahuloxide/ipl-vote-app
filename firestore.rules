@@ -28,6 +28,13 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
+    function matchDeadlineIsOpen(leagueId, matchId) {
+      let match = get(/databases/$(database)/documents/matches/$(matchId)).data;
+      return match.leagueId == leagueId
+        && match.deadlineEpochMs is int
+        && request.time.toMillis() < match.deadlineEpochMs;
+    }
+
     match /users/{userId} {
       allow create: if signedIn()
         && request.auth.uid == userId
@@ -110,7 +117,9 @@ service cloud.firestore {
 
     match /matches/{matchId} {
       allow read: if isLeagueMember(resource.data.leagueId);
-      allow create, update: if signedIn() && isLeagueAdmin(request.resource.data.leagueId);
+      allow create, update: if signedIn()
+        && isLeagueAdmin(request.resource.data.leagueId)
+        && request.resource.data.deadlineEpochMs is int;
       allow delete: if signedIn() && isLeagueAdmin(resource.data.leagueId);
     }
 
@@ -123,7 +132,8 @@ service cloud.firestore {
       allow create, update: if signedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.userEmail == request.auth.token.email
-        && isLeagueMember(request.resource.data.leagueId);
+        && isLeagueMember(request.resource.data.leagueId)
+        && matchDeadlineIsOpen(request.resource.data.leagueId, request.resource.data.matchId);
     }
 
     match /leagueScores/{scoreId} {

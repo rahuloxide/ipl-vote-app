@@ -9,16 +9,23 @@ import {
   requestToJoinLeague,
   saveLeaguePick,
   subscribeToAllLeagues,
+  subscribeToAllLeaguePicks,
   subscribeToLeagueMatches,
   subscribeToLeagueMembers,
   subscribeToLeaguePicks,
+  subscribeToLeagueScores,
   subscribeToUserLeagueRequests,
   subscribeToUserLeagues,
 } from "../services/leagueService";
 
+function formatPoints(value) {
+  return Number(value || 0).toFixed(2);
+}
+
 function Dashboard({ user, currentUserRole, selectedLeagueId }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("picks");
   const [errorMessage, setErrorMessage] = useState("");
   const [leagues, setLeagues] = useState([]);
   const [allLeagues, setAllLeagues] = useState([]);
@@ -27,6 +34,8 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
   const [matches, setMatches] = useState([]);
   const [members, setMembers] = useState([]);
   const [picks, setPicks] = useState({});
+  const [allLeaguePicks, setAllLeaguePicks] = useState([]);
+  const [leagueScores, setLeagueScores] = useState([]);
 
   useEffect(() => {
     const unsubscribeLeagues = subscribeToUserLeagues(
@@ -72,6 +81,8 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       setMatches([]);
       setMembers([]);
       setPicks({});
+      setAllLeaguePicks([]);
+      setLeagueScores([]);
       setSelectedLeagueRole(null);
       return;
     }
@@ -106,6 +117,26 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       }
     );
 
+    const unsubscribeAllLeaguePicks = subscribeToAllLeaguePicks(
+      selectedLeagueId,
+      (nextPicks) => {
+        setAllLeaguePicks(nextPicks);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league performance.");
+      }
+    );
+
+    const unsubscribeLeagueScores = subscribeToLeagueScores(
+      selectedLeagueId,
+      (nextScores) => {
+        setLeagueScores(nextScores);
+      },
+      (error) => {
+        setErrorMessage(error.message || "Unable to load league scores.");
+      }
+    );
+
     getLeagueRole({ leagueId: selectedLeagueId, userId: user.uid })
       .then((role) => {
         setSelectedLeagueRole(role);
@@ -118,6 +149,8 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       unsubscribeMatches();
       unsubscribeMembers();
       unsubscribePicks();
+      unsubscribeAllLeaguePicks();
+      unsubscribeLeagueScores();
     };
   }, [selectedLeagueId, user.uid]);
 
@@ -139,6 +172,77 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
         !joinedLeagueIds.includes(league.id) && !requestedLeagueIds.includes(league.id)
     );
   }, [allLeagues, leagues, requestedLeagueIds]);
+
+  const performanceRows = useMemo(() => {
+    if (!selectedLeague) {
+      return [];
+    }
+
+    const roster = new Map();
+
+    if (selectedLeague.adminUid) {
+      roster.set(selectedLeague.adminUid, {
+        userId: selectedLeague.adminUid,
+        userEmail: selectedLeague.adminEmail || "Admin",
+        role: "admin",
+      });
+    }
+
+    members.forEach((member) => {
+      roster.set(member.userId, {
+        userId: member.userId,
+        userEmail: member.userEmail,
+        role: member.role,
+      });
+    });
+
+    const scoreLookup = leagueScores.reduce((accumulator, score) => {
+      accumulator[score.userId] = score;
+      return accumulator;
+    }, {});
+
+    const picksByUser = allLeaguePicks.reduce((accumulator, pick) => {
+      if (!accumulator[pick.userId]) {
+        accumulator[pick.userId] = [];
+      }
+
+      accumulator[pick.userId].push(pick);
+      return accumulator;
+    }, {});
+
+    return Array.from(roster.values())
+      .map((member) => {
+        const userPicks = picksByUser[member.userId] || [];
+        const wins = userPicks.filter((pick) => pick.outcome === "won").length;
+        const losses = userPicks.filter((pick) => pick.outcome === "lost").length;
+        const totalPicks = userPicks.length;
+        const missed = Math.max(matches.length - totalPicks, 0);
+        const settledPicks = wins + losses;
+        const accuracy = settledPicks ? Math.round((wins / settledPicks) * 100) : 0;
+
+        return {
+          userId: member.userId,
+          userEmail: member.userEmail,
+          points: Number(scoreLookup[member.userId]?.totalPoints || 0),
+          wins,
+          losses,
+          missed,
+          totalPicks,
+          accuracy,
+        };
+      })
+      .sort((left, right) => {
+        if (right.points !== left.points) {
+          return right.points - left.points;
+        }
+
+        if (right.wins !== left.wins) {
+          return right.wins - left.wins;
+        }
+
+        return left.userEmail.localeCompare(right.userEmail);
+      });
+  }, [allLeaguePicks, leagueScores, matches.length, members, selectedLeague]);
 
   const handleRequestJoin = async (leagueId) => {
     setErrorMessage("");
@@ -232,6 +336,25 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       ) : (
         <>
           <section className="matches-section">
+            <div className="tab-row home-content-tabs" role="tablist" aria-label="Home league views">
+              <button
+                className={`nav-link ${activeTab === "picks" ? "active" : ""}`}
+                type="button"
+                onClick={() => setActiveTab("picks")}
+              >
+                Picks
+              </button>
+              <button
+                className={`nav-link ${activeTab === "performance" ? "active" : ""}`}
+                type="button"
+                onClick={() => setActiveTab("performance")}
+              >
+                Performance
+              </button>
+            </div>
+
+            {activeTab === "picks" ? (
+              <>
             <div className="section-heading">
               <div>
                 <p className="section-label">Match picks</p>
@@ -255,6 +378,58 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
                 />
               ))}
             </div>
+              </>
+            ) : (
+              <>
+                <div className="section-heading">
+                  <div>
+                    <p className="section-label">League performance</p>
+                    <h2>{selectedLeague?.name || "League standings"}</h2>
+                  </div>
+                  <p className="section-copy">
+                    Track how the full league is doing so far, including points, wins, losses, missed picks, and hit rate.
+                  </p>
+                </div>
+
+                <div className="table-wrapper performance-table-wrapper">
+                  <table className="simple-table performance-table">
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Points</th>
+                        <th>Wins</th>
+                        <th>Losses</th>
+                        <th>Missed</th>
+                        <th>Picks</th>
+                        <th>Accuracy</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {performanceRows.length ? (
+                        performanceRows.map((row, index) => (
+                          <tr
+                            key={row.userId}
+                            className={index === 0 ? "performance-row leader-row" : "performance-row"}
+                          >
+                            <td>{row.userEmail}</td>
+                            <td>{formatPoints(row.points)}</td>
+                            <td>{row.wins}</td>
+                            <td>{row.losses}</td>
+                            <td>{row.missed}</td>
+                            <td>{row.totalPicks}</td>
+                            <td>{row.accuracy}%</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7">No league performance data yet.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </section>
         </>
       )}

@@ -40,6 +40,16 @@ function getDefaultLeagueName(user) {
   return `${firstName}'s Admin`;
 }
 
+function toDeadlineEpochMs(dateTime) {
+  const parsedDate = new Date(dateTime);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error("Use a valid match date and time.");
+  }
+
+  return parsedDate.getTime();
+}
+
 async function loadLeagueById(leagueId) {
   const snapshot = await getDoc(doc(db, "leagues", leagueId));
 
@@ -375,10 +385,13 @@ export async function createLeagueMatch({
   option2,
   userId,
 }) {
+  const deadlineEpochMs = toDeadlineEpochMs(dateTime);
+
   await addDoc(matchesCollection, {
     leagueId,
     matchName: matchName.trim(),
     dateTime: dateTime.trim(),
+    deadlineEpochMs,
     points: Number(points),
     option1: option1.trim(),
     option2: option2.trim(),
@@ -400,10 +413,13 @@ export async function createLeagueMatchesBulk({ leagueId, matches, userId }) {
 
   matches.forEach((match) => {
     const matchReference = doc(matchesCollection);
+    const deadlineEpochMs = toDeadlineEpochMs(match.dateTime);
+
     batch.set(matchReference, {
       leagueId,
       matchName: match.matchName.trim(),
       dateTime: match.dateTime.trim(),
+      deadlineEpochMs,
       points: Number(match.points),
       option1: match.option1.trim(),
       option2: match.option2.trim(),
@@ -427,9 +443,12 @@ export async function updateLeagueMatch({
   option1,
   option2,
 }) {
+  const deadlineEpochMs = toDeadlineEpochMs(dateTime);
+
   await updateDoc(doc(db, "matches", matchId), {
     matchName: matchName.trim(),
     dateTime: dateTime.trim(),
+    deadlineEpochMs,
     points: Number(points),
     option1: option1.trim(),
     option2: option2.trim(),
@@ -525,6 +544,20 @@ export function subscribeToLeagueScores(leagueId, onData, onError) {
 }
 
 export async function saveLeaguePick({ leagueId, matchId, selectedTeam, userId, userEmail }) {
+  const matchSnapshot = await getDoc(doc(db, "matches", matchId));
+
+  if (!matchSnapshot.exists()) {
+    throw new Error("Match not found.");
+  }
+
+  const matchData = matchSnapshot.data();
+  const deadlineEpochMs =
+    Number(matchData.deadlineEpochMs) || toDeadlineEpochMs(matchData.dateTime || matchData.kickoff || "");
+
+  if (Date.now() >= deadlineEpochMs) {
+    throw new Error("Predictions are closed for this match.");
+  }
+
   await setDoc(doc(db, "picks", `${leagueId}_${matchId}_${userId}`), {
     leagueId,
     matchId,

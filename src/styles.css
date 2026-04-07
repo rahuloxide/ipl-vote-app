@@ -509,6 +509,11 @@ button {
   font-size: 0.8rem;
 }
 
+.match-status-closed {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .role-pill {
   display: inline-flex;
   align-items: center;
@@ -560,6 +565,10 @@ button {
   margin-bottom: 10px;
 }
 
+.home-content-tabs {
+  margin-bottom: 12px;
+}
+
 .simple-table {
   width: 100%;
   border-collapse: collapse;
@@ -586,6 +595,20 @@ button {
 
 .simple-table tbody tr:last-child td {
   border-bottom: none;
+}
+
+.performance-table th:first-child,
+.performance-table td:first-child {
+  min-width: 220px;
+}
+
+.performance-row td {
+  white-space: nowrap;
+}
+
+.leader-row td {
+  background: rgba(219, 234, 254, 0.52);
+  font-weight: 700;
 }
 
 .row-actions {
