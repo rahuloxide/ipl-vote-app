@@ -107,7 +107,7 @@ function isMatchCompleted(match) {
 
 function getResultLabel(result) {
   if (!result) {
-    return "Pending";
+    return "TBD";
   }
 
   return result === "no result" ? "No Result" : result;
@@ -134,7 +134,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     option2: "",
   });
   const [leagueName, setLeagueName] = useState("");
-  const [resultSelections, setResultSelections] = useState({});
 
   useEffect(() => {
     setLeagueName(league?.name || "");
@@ -354,9 +353,8 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     }
   };
 
-  const handleSaveResult = async (match) => {
-    const selectedResult = resultSelections[match.id] ?? (match.result ?? "");
-    const normalizedResult = selectedResult || null;
+  const handleSaveResult = async (match, nextResult) => {
+    const normalizedResult = nextResult || null;
 
     if ((match.result ?? null) === normalizedResult) {
       return;
@@ -370,11 +368,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         leagueId,
         matchId: match.id,
         result: normalizedResult,
-      });
-      setResultSelections((currentSelections) => {
-        const nextSelections = { ...currentSelections };
-        delete nextSelections[match.id];
-        return nextSelections;
       });
     } catch (error) {
       setErrorMessage(error.message || "Unable to save this result.");
@@ -557,23 +550,22 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
               <tr>
                 <th>Match Name</th>
                 <th>DateTime</th>
-                <th>Option1</th>
-                <th>Option2</th>
-                <th>Result</th>
+                <th className="choice-header" aria-label="Option 1"></th>
+                <th className="choice-header" aria-label="Option 2"></th>
+                <th className="choice-header" aria-label="To be decided"></th>
+                <th className="choice-header" aria-label="No result"></th>
                 <th>Manage Options</th>
               </tr>
             </thead>
             <tbody>
-              {matches.length ? (
-                matches.map((match) => {
-                  const option1 = match.option1 || match.teamA || "-";
-                  const option2 = match.option2 || match.teamB || "-";
-                  const selectedResult = resultSelections[match.id] ?? (match.result ?? "");
-                  const isCompleted = isMatchCompleted(match);
-                  const isEditingRow = editingMatchId === match.id;
-                  const hasResultChanged = (match.result ?? "") !== selectedResult;
+                {matches.length ? (
+                  matches.map((match) => {
+                    const option1 = match.option1 || match.teamA || "-";
+                    const option2 = match.option2 || match.teamB || "-";
+                    const isCompleted = isMatchCompleted(match);
+                    const isEditingRow = editingMatchId === match.id;
 
-                  return (
+                    return (
                   <tr
                     key={match.id}
                     className={isCompleted ? "completed-match-row" : ""}
@@ -611,7 +603,14 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                           onChange={(event) => updateField("option1", event.target.value)}
                         />
                       ) : (
-                        option1
+                        <button
+                          className={`pick-button table-pick-button ${match.result === option1 ? "active" : ""}`}
+                          type="button"
+                          onClick={() => handleSaveResult(match, option1)}
+                          disabled={isSaving}
+                        >
+                          {option1}
+                        </button>
                       )}
                     </td>
                     <td>
@@ -623,44 +622,43 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                           onChange={(event) => updateField("option2", event.target.value)}
                         />
                       ) : (
-                        option2
+                        <button
+                          className={`pick-button table-pick-button ${match.result === option2 ? "active" : ""}`}
+                          type="button"
+                          onClick={() => handleSaveResult(match, option2)}
+                          disabled={isSaving}
+                        >
+                          {option2}
+                        </button>
                       )}
                     </td>
                     <td>
-                      <div className="result-cell">
-                        <span className={`result-text ${match.result ? "has-result" : "is-pending"}`}>
-                          {getResultLabel(match.result)}
-                        </span>
-
-                        {match.result ? null : (
-                          <div className="result-editor">
-                            <select
-                              className="select-input compact-select"
-                              value={selectedResult}
-                              onChange={(event) =>
-                                setResultSelections((currentSelections) => ({
-                                  ...currentSelections,
-                                  [match.id]: event.target.value,
-                                }))
-                              }
-                              disabled={isSaving}
-                            >
-                              <option value="">Select result</option>
-                              <option value={option1}>{option1}</option>
-                              <option value={option2}>{option2}</option>
-                              <option value="no result">No Result</option>
-                            </select>
-                            <button
-                              className="secondary-button compact-button"
-                              type="button"
-                              onClick={() => handleSaveResult(match)}
-                              disabled={isSaving || !hasResultChanged}
-                            >
-                              Save
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                      {isEditingRow ? (
+                        null
+                      ) : (
+                        <button
+                          className={`secondary-button table-choice-button ${match.result == null ? "active" : ""}`}
+                          type="button"
+                          onClick={() => handleSaveResult(match, null)}
+                          disabled={isSaving}
+                        >
+                          TBD
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      {isEditingRow ? (
+                        null
+                      ) : (
+                        <button
+                          className={`secondary-button result-reset-button ${match.result === "no result" ? "active" : ""}`}
+                          type="button"
+                          onClick={() => handleSaveResult(match, "no result")}
+                          disabled={isSaving}
+                        >
+                          No Result
+                        </button>
+                      )}
                     </td>
                     <td>
                       <div className="row-actions">

@@ -614,16 +614,23 @@ button {
 .simple-table th,
 .simple-table td {
   text-align: left;
-  padding: 8px 10px;
+  padding: 7px 9px;
   border-bottom: 1px solid #e2e8f0;
   vertical-align: top;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
 }
 
 .simple-table th {
   background: #eef2f7;
   color: #334155;
   font-size: 0.78rem;
+}
+
+.choice-header {
+  width: 1%;
+  color: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .simple-table tbody tr:last-child td {
@@ -636,7 +643,7 @@ button {
 
 .result-cell {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .result-text {
@@ -654,7 +661,7 @@ button {
 
 .result-editor {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -669,6 +676,56 @@ button {
 .compact-button {
   min-height: 34px;
   padding: 7px 10px;
+}
+
+.result-pick-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.table-pick-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  line-height: 1.1;
+  box-shadow: none;
+}
+
+.table-choice-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  background: #eef2f7;
+}
+
+.table-choice-button.active {
+  background: #334155;
+  color: #ffffff;
+}
+
+.table-inline-label {
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.result-reset-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  background: #eef2f7;
+}
+
+.result-reset-button.active {
+  background: #334155;
+  color: #ffffff;
 }
 
 .performance-table th:first-child,
