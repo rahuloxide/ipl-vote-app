@@ -4,10 +4,10 @@ import {
   createLeagueMatch,
   createLeagueMatchesBulk,
   deleteLeagueMatch,
-  finalizeLeagueMatch,
   rejectLeagueRequest,
   renameLeague,
   removeLeagueMember,
+  saveLeagueMatchResult,
   subscribeToAllLeaguePicks,
   subscribeToLeague,
   subscribeToLeagueMatches,
@@ -94,6 +94,25 @@ function parseCsvLine(line) {
   return values;
 }
 
+function isMatchCompleted(match) {
+  const matchDateTime = match.dateTime || match.kickoff || "";
+  const parsedDate = new Date(matchDateTime);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return false;
+  }
+
+  return Date.now() > parsedDate.getTime();
+}
+
+function getResultLabel(result) {
+  if (!result) {
+    return "Pending";
+  }
+
+  return result === "no result" ? "No Result" : result;
+}
+
 function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   const [league, setLeague] = useState(null);
   const [matches, setMatches] = useState([]);
@@ -111,6 +130,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     option2: "",
   });
   const [leagueName, setLeagueName] = useState("");
+  const [resultSelections, setResultSelections] = useState({});
 
   useEffect(() => {
     setLeagueName(league?.name || "");
@@ -323,18 +343,29 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     }
   };
 
-  const handleMarkWinner = async (match, winningOption) => {
+  const handleSaveResult = async (match) => {
+    const selectedResult = resultSelections[match.id];
+
+    if (!selectedResult) {
+      return;
+    }
+
     setErrorMessage("");
     setIsSaving(true);
 
     try {
-      await finalizeLeagueMatch({
+      await saveLeagueMatchResult({
         leagueId,
         matchId: match.id,
-        winningOption,
+        result: selectedResult,
+      });
+      setResultSelections((currentSelections) => {
+        const nextSelections = { ...currentSelections };
+        delete nextSelections[match.id];
+        return nextSelections;
       });
     } catch (error) {
-      setErrorMessage(error.message || "Unable to settle this match.");
+      setErrorMessage(error.message || "Unable to save this result.");
     } finally {
       setIsSaving(false);
     }
@@ -439,7 +470,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
             `${match?.option1 || match?.teamA || "Match"} vs ${match?.option2 || match?.teamB || ""}`,
           userEmail: pick.userEmail,
           selectedTeam: pick.selectedTeam,
-          outcome: pick.outcome || (match?.winningOption ? "pending settlement" : "open"),
+          outcome: pick.outcome || (match?.result ? "pending settlement" : "open"),
           rewardTokens: pick.rewardTokens ?? 0,
         };
       })
@@ -516,17 +547,63 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 <th>DateTime</th>
                 <th>Option1</th>
                 <th>Option2</th>
+                <th>Result</th>
                 <th>Manage Options</th>
               </tr>
             </thead>
             <tbody>
               {matches.length ? (
-                matches.map((match) => (
-                  <tr key={match.id}>
+                matches.map((match) => {
+                  const option1 = match.option1 || match.teamA || "-";
+                  const option2 = match.option2 || match.teamB || "-";
+                  const selectedResult = resultSelections[match.id] || "";
+                  const isCompleted = isMatchCompleted(match);
+
+                  return (
+                  <tr
+                    key={match.id}
+                    className={isCompleted ? "completed-match-row" : ""}
+                  >
                     <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
                     <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
-                    <td>{match.option1 || match.teamA || "-"}</td>
-                    <td>{match.option2 || match.teamB || "-"}</td>
+                    <td>{option1}</td>
+                    <td>{option2}</td>
+                    <td>
+                      <div className="result-cell">
+                        <span className={`result-text ${match.result ? "has-result" : "is-pending"}`}>
+                          {getResultLabel(match.result)}
+                        </span>
+
+                        {match.result ? null : (
+                          <div className="result-editor">
+                            <select
+                              className="select-input compact-select"
+                              value={selectedResult}
+                              onChange={(event) =>
+                                setResultSelections((currentSelections) => ({
+                                  ...currentSelections,
+                                  [match.id]: event.target.value,
+                                }))
+                              }
+                              disabled={isSaving}
+                            >
+                              <option value="">Select result</option>
+                              <option value={option1}>{option1}</option>
+                              <option value={option2}>{option2}</option>
+                              <option value="no result">No Result</option>
+                            </select>
+                            <button
+                              className="secondary-button compact-button"
+                              type="button"
+                              onClick={() => handleSaveResult(match)}
+                              disabled={isSaving || !selectedResult}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <div className="row-actions">
                         <button className="link-button" onClick={() => handleEditMatch(match)}>
@@ -542,10 +619,11 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                       </div>
                     </td>
                   </tr>
-                ))
+                );
+                })
               ) : (
                 <tr>
-                  <td colSpan="5">No matches added yet.</td>
+                  <td colSpan="6">No matches added yet.</td>
                 </tr>
               )}
             </tbody>
@@ -642,73 +720,8 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
             <h2>{league.name}</h2>
           </div>
           <p className="section-copy">
-            Review results, balances, and voting performance for this league.
+            Review rewards and voting performance for this league.
           </p>
-        </div>
-      </section>
-
-      <section className="admin-card">
-        <div className="section-heading">
-          <div>
-            <p className="section-label">Match results</p>
-            <h2>{league.name}</h2>
-          </div>
-          <p className="section-copy">
-            Mark winners after each match and settle balances for the players.
-          </p>
-        </div>
-
-        <div className="table-wrapper">
-          <table className="simple-table">
-            <thead>
-              <tr>
-                <th>Match Name</th>
-                <th>DateTime</th>
-                <th>Option1</th>
-                <th>Option2</th>
-                <th>Result</th>
-              </tr>
-            </thead>
-            <tbody>
-              {matches.length ? (
-                matches.map((match) => (
-                  <tr key={match.id}>
-                    <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
-                    <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
-                    <td>{match.option1 || match.teamA || "-"}</td>
-                    <td>{match.option2 || match.teamB || "-"}</td>
-                    <td>
-                      <div className="row-actions">
-                        <button
-                          className="link-button"
-                          onClick={() => handleMarkWinner(match, match.option1 || match.teamA)}
-                          disabled={isSaving || match.rewardsCalculated}
-                        >
-                          Won: {match.option1 || match.teamA}
-                        </button>
-                        <button
-                          className="link-button"
-                          onClick={() => handleMarkWinner(match, match.option2 || match.teamB)}
-                          disabled={isSaving || match.rewardsCalculated}
-                        >
-                          Won: {match.option2 || match.teamB}
-                        </button>
-                      </div>
-                      {match.winningOption ? (
-                        <p className="inline-meta">Result: {match.winningOption}</p>
-                      ) : (
-                        <p className="inline-meta">Result pending</p>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5">No matches added yet.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
       </section>
 

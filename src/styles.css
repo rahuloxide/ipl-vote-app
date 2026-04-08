@@ -597,6 +597,47 @@ button {
   border-bottom: none;
 }
 
+.completed-match-row td {
+  background: #f3f4f6;
+}
+
+.result-cell {
+  display: grid;
+  gap: 8px;
+}
+
+.result-text {
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.result-text.is-pending {
+  color: #64748b;
+}
+
+.result-text.has-result {
+  color: #0f172a;
+}
+
+.result-editor {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.compact-select {
+  min-width: 150px;
+  max-width: 220px;
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
+.compact-button {
+  min-height: 34px;
+  padding: 7px 10px;
+}
+
 .performance-table th:first-child,
 .performance-table td:first-child {
   min-width: 220px;

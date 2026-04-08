@@ -402,6 +402,7 @@ export async function createLeagueMatch({
     teamB: option2.trim(),
     kickoff: dateTime.trim(),
     venue: "",
+    result: null,
     rewardsCalculated: false,
     createdByUid: userId,
     createdAt: serverTimestamp(),
@@ -430,6 +431,7 @@ export async function createLeagueMatchesBulk({ leagueId, matches, userId }) {
       teamB: match.option2.trim(),
       kickoff: match.dateTime.trim(),
       venue: "",
+      result: null,
       rewardsCalculated: false,
       createdByUid: userId,
       createdAt: serverTimestamp(),
@@ -624,6 +626,7 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
   const batch = writeBatch(db);
 
   batch.update(matchReference, {
+    result: winningOption,
     winningOption,
     rewardsCalculated: true,
     settledAt: serverTimestamp(),
@@ -657,6 +660,37 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
   });
 
   await batch.commit();
+}
+
+export async function saveLeagueMatchResult({ leagueId, matchId, result }) {
+  const matchReference = doc(db, "matches", matchId);
+  const matchSnapshot = await getDoc(matchReference);
+
+  if (!matchSnapshot.exists()) {
+    throw new Error("Match not found.");
+  }
+
+  const matchData = matchSnapshot.data();
+  const option1 = matchData.option1 || matchData.teamA;
+  const option2 = matchData.option2 || matchData.teamB;
+  const allowedResults = [option1, option2, "no result", null];
+
+  if (!allowedResults.includes(result)) {
+    throw new Error("Use a valid match result.");
+  }
+
+  await updateDoc(matchReference, {
+    result,
+    winningOption: result === "no result" ? null : result,
+  });
+
+  if (result && result !== "no result" && !matchData.rewardsCalculated) {
+    await finalizeLeagueMatch({
+      leagueId,
+      matchId,
+      winningOption: result,
+    });
+  }
 }
 
 export async function getLeagueRole({ leagueId, userId }) {
