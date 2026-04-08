@@ -49,6 +49,28 @@ function toDeadlineEpochMs(dateTime) {
   return parsedDate.getTime();
 }
 
+function normalizeMatchResult(result, option1, option2) {
+  const trimmedResult = String(result || "").trim();
+
+  if (!trimmedResult) {
+    return null;
+  }
+
+  if (trimmedResult.toLowerCase() === "no result") {
+    return "no result";
+  }
+
+  if (trimmedResult === option1) {
+    return option1;
+  }
+
+  if (trimmedResult === option2) {
+    return option2;
+  }
+
+  throw new Error(`Result must be "${option1}", "${option2}", or "No Result".`);
+}
+
 async function loadLeagueById(leagueId) {
   const snapshot = await getDoc(doc(db, "leagues", leagueId));
 
@@ -415,30 +437,52 @@ export async function createLeagueMatchesBulk({ leagueId, matches, userId }) {
   }
 
   const batch = writeBatch(db);
+  const importedMatches = [];
 
   matches.forEach((match) => {
     const matchReference = doc(matchesCollection);
     const deadlineEpochMs = toDeadlineEpochMs(match.dateTime);
+    const option1 = match.option1.trim();
+    const option2 = match.option2.trim();
+    const normalizedResult = normalizeMatchResult(match.result, option1, option2);
 
     batch.set(matchReference, {
       leagueId,
       matchName: match.matchName.trim(),
       dateTime: match.dateTime.trim(),
       deadlineEpochMs,
-      option1: match.option1.trim(),
-      option2: match.option2.trim(),
-      teamA: match.option1.trim(),
-      teamB: match.option2.trim(),
+      option1,
+      option2,
+      teamA: option1,
+      teamB: option2,
       kickoff: match.dateTime.trim(),
       venue: "",
-      result: null,
+      result: normalizedResult,
       rewardsCalculated: false,
       createdByUid: userId,
       createdAt: serverTimestamp(),
     });
+
+    importedMatches.push({
+      id: matchReference.id,
+      dateTime: match.dateTime.trim(),
+      result: normalizedResult,
+    });
   });
 
   await batch.commit();
+
+  for (const match of importedMatches) {
+    const isPastMatch = Date.now() > toDeadlineEpochMs(match.dateTime);
+
+    if (match.result && isPastMatch) {
+      await saveLeagueMatchResult({
+        leagueId,
+        matchId: match.id,
+        result: match.result,
+      });
+    }
+  }
 }
 
 export async function updateLeagueMatch({

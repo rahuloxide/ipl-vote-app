@@ -287,12 +287,14 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         dateTime: headers.indexOf("datetime"),
         option1: headers.indexOf("option1"),
         option2: headers.indexOf("option2"),
+        result: headers.indexOf("result"),
       };
 
-      const missingHeader = Object.values(headerIndex).some((value) => value === -1);
+      const missingHeader = [headerIndex.matchName, headerIndex.dateTime, headerIndex.option1, headerIndex.option2]
+        .some((value) => value === -1);
 
       if (missingHeader) {
-        throw new Error("CSV headers must be: Match Name, DateTime, Option1, Option2.");
+        throw new Error("CSV headers must be: Match Name, DateTime, Option1, Option2. Result is optional.");
       }
 
       const parsedMatches = rows.slice(1).map((line, index) => {
@@ -302,9 +304,11 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           dateTime: normalizeDateTimeValue(values[headerIndex.dateTime] || ""),
           option1: values[headerIndex.option1] || "",
           option2: values[headerIndex.option2] || "",
+          result: headerIndex.result === -1 ? "" : values[headerIndex.result] || "",
         };
 
-        const hasEmptyField = Object.values(match).some((value) => !String(value).trim());
+        const hasEmptyField = [match.matchName, match.dateTime, match.option1, match.option2]
+          .some((value) => !String(value).trim());
 
         if (hasEmptyField) {
           throw new Error(`CSV row ${index + 2} is missing required values.`);
@@ -696,7 +700,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         <div className="csv-upload-card">
           <p className="section-label">Bulk upload</p>
           <p className="section-copy">
-            Upload a CSV with columns: Match Name, DateTime, Option1, Option2.
+            Upload a CSV with columns: Match Name, DateTime, Option1, Option2. Result is optional.
           </p>
           <input
             className="text-input"
