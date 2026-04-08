@@ -113,6 +113,10 @@ function getResultLabel(result) {
   return result === "no result" ? "No Result" : result;
 }
 
+function getMatchIdentity(match) {
+  return match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`;
+}
+
 function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   const [league, setLeague] = useState(null);
   const [matches, setMatches] = useState([]);
@@ -211,9 +215,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     };
   }, [leagueId]);
 
-  const handleMatchSubmit = async (event) => {
-    event.preventDefault();
-
+  const submitMatch = async () => {
     const hasEmptyField = Object.values(formValues).some((value) => !String(value).trim());
 
     if (hasEmptyField) {
@@ -257,6 +259,11 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleMatchSubmit = async (event) => {
+    event.preventDefault();
+    await submitMatch();
   };
 
   const handleCsvUpload = async (event) => {
@@ -348,9 +355,10 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   };
 
   const handleSaveResult = async (match) => {
-    const selectedResult = resultSelections[match.id];
+    const selectedResult = resultSelections[match.id] ?? (match.result ?? "");
+    const normalizedResult = selectedResult || null;
 
-    if (!selectedResult) {
+    if ((match.result ?? null) === normalizedResult) {
       return;
     }
 
@@ -361,7 +369,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
       await saveLeagueMatchResult({
         leagueId,
         matchId: match.id,
-        result: selectedResult,
+        result: normalizedResult,
       });
       setResultSelections((currentSelections) => {
         const nextSelections = { ...currentSelections };
@@ -404,7 +412,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   const handleEditMatch = (match) => {
     setEditingMatchId(match.id);
     setFormValues({
-      matchName: match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`,
+      matchName: getMatchIdentity(match),
       dateTime: toDateTimeInputValue(match.dateTime || match.kickoff || ""),
       option1: match.option1 || match.teamA || "",
       option2: match.option2 || match.teamB || "",
@@ -560,18 +568,64 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 matches.map((match) => {
                   const option1 = match.option1 || match.teamA || "-";
                   const option2 = match.option2 || match.teamB || "-";
-                  const selectedResult = resultSelections[match.id] || "";
+                  const selectedResult = resultSelections[match.id] ?? (match.result ?? "");
                   const isCompleted = isMatchCompleted(match);
+                  const isEditingRow = editingMatchId === match.id;
+                  const hasResultChanged = (match.result ?? "") !== selectedResult;
 
                   return (
                   <tr
                     key={match.id}
                     className={isCompleted ? "completed-match-row" : ""}
                   >
-                    <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
-                    <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
-                    <td>{option1}</td>
-                    <td>{option2}</td>
+                    <td>
+                      {isEditingRow ? (
+                        <input
+                          className="text-input compact-input"
+                          type="text"
+                          value={formValues.matchName}
+                          onChange={(event) => updateField("matchName", event.target.value)}
+                        />
+                      ) : (
+                        getMatchIdentity(match)
+                      )}
+                    </td>
+                    <td>
+                      {isEditingRow ? (
+                        <input
+                          className="text-input compact-input"
+                          type="datetime-local"
+                          value={formValues.dateTime}
+                          onChange={(event) => updateField("dateTime", event.target.value)}
+                        />
+                      ) : (
+                        formatDateTime(match.dateTime || match.kickoff || "")
+                      )}
+                    </td>
+                    <td>
+                      {isEditingRow ? (
+                        <input
+                          className="text-input compact-input"
+                          type="text"
+                          value={formValues.option1}
+                          onChange={(event) => updateField("option1", event.target.value)}
+                        />
+                      ) : (
+                        option1
+                      )}
+                    </td>
+                    <td>
+                      {isEditingRow ? (
+                        <input
+                          className="text-input compact-input"
+                          type="text"
+                          value={formValues.option2}
+                          onChange={(event) => updateField("option2", event.target.value)}
+                        />
+                      ) : (
+                        option2
+                      )}
+                    </td>
                     <td>
                       <div className="result-cell">
                         <span className={`result-text ${match.result ? "has-result" : "is-pending"}`}>
@@ -600,7 +654,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                               className="secondary-button compact-button"
                               type="button"
                               onClick={() => handleSaveResult(match)}
-                              disabled={isSaving || !selectedResult}
+                              disabled={isSaving || !hasResultChanged}
                             >
                               Save
                             </button>
@@ -610,15 +664,51 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                     </td>
                     <td>
                       <div className="row-actions">
-                        <button className="link-button" onClick={() => handleEditMatch(match)}>
-                          Edit
-                        </button>
+                        {isEditingRow ? (
+                          <>
+                            <button
+                              className="link-button"
+                              type="button"
+                              onClick={submitMatch}
+                              disabled={isSaving}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="link-button"
+                              type="button"
+                              onClick={() => {
+                                setEditingMatchId("");
+                                setFormValues({
+                                  matchName: "",
+                                  dateTime: "",
+                                  option1: "",
+                                  option2: "",
+                                });
+                              }}
+                              disabled={isSaving}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button className="link-button" type="button" onClick={() => handleEditMatch(match)}>
+                            Edit
+                          </button>
+                        )}
                         <button
-                          className="link-button danger-link"
+                          className="icon-button danger-icon-button"
+                          type="button"
+                          aria-label={`Delete ${getMatchIdentity(match)}`}
                           onClick={() => handleDeleteMatch(match.id)}
                           disabled={isSaving}
                         >
-                          Delete
+                          <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path
+                              d="M9 3h6l1 2h4v2H4V5h4l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Zm-1 10h12l1-13H5l1 13Z"
+                              fill="currentColor"
+                            />
+                          </svg>
                         </button>
                       </div>
                     </td>
@@ -634,6 +724,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           </table>
         </div>
 
+        {!editingMatchId ? (
         <form className="stack-form" onSubmit={handleMatchSubmit}>
           <div className="two-column-grid">
             <input
@@ -696,6 +787,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
             ) : null}
           </div>
         </form>
+        ) : null}
 
         <div className="csv-upload-card">
           <p className="section-label">Bulk upload</p>

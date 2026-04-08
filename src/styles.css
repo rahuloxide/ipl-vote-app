@@ -193,6 +193,33 @@ button {
   color: #991b1b;
 }
 
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  padding: 0;
+}
+
+.icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.danger-icon-button {
+  color: #b91c1c;
+}
+
+.danger-icon-button:hover {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 .header-actions {
   display: flex;
   gap: 6px;
@@ -461,6 +488,12 @@ button {
   border: 1px solid #cbd5e1;
   background: #ffffff;
   color: #0f172a;
+}
+
+.compact-input {
+  min-width: 140px;
+  min-height: 34px;
+  padding: 7px 10px;
 }
 
 .text-input:focus,

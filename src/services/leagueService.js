@@ -630,9 +630,6 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
   }
 
   const matchData = matchSnapshot.data();
-  if (matchData.rewardsCalculated) {
-    throw new Error("Rewards have already been calculated for this match.");
-  }
 
   const option1 = matchData.option1 || matchData.teamA;
   const option2 = matchData.option2 || matchData.teamB;
@@ -677,9 +674,14 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
   });
 
   picks.forEach((pick) => {
+    const previousWins = pick.outcome === "won" ? 1 : 0;
+    const previousLosses = pick.outcome === "lost" ? 1 : 0;
+    const previousTokens = Number(pick.rewardTokens || 0);
     const isWinner = pick.selectedTeam === winningOption;
     const outcome = isWinner ? "won" : "lost";
     const rewardTokens = isWinner ? tokensPerWinner : 0;
+    const nextWins = isWinner ? 1 : 0;
+    const nextLosses = isWinner ? 0 : 1;
 
     batch.set(
       doc(db, "leagueScores", scoreDocumentId(leagueId, pick.userId)),
@@ -687,9 +689,9 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
         leagueId,
         userId: pick.userId,
         userEmail: pick.userEmail,
-        wins: increment(isWinner ? 1 : 0),
-        losses: increment(isWinner ? 0 : 1),
-        tokens: increment(rewardTokens),
+        wins: increment(nextWins - previousWins),
+        losses: increment(nextLosses - previousLosses),
+        tokens: increment(rewardTokens - previousTokens),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
@@ -723,18 +725,66 @@ export async function saveLeagueMatchResult({ leagueId, matchId, result }) {
     throw new Error("Use a valid match result.");
   }
 
+  const picksSnapshot = await getDocs(
+    query(
+      picksCollection,
+      where("leagueId", "==", leagueId),
+      where("matchId", "==", matchId)
+    )
+  );
+
+  if (result === null || result === "no result") {
+    const batch = writeBatch(db);
+
+    batch.update(matchReference, {
+      result,
+      winningOption: null,
+      rewardsCalculated: result === "no result",
+      settledAt: result === "no result" ? serverTimestamp() : null,
+    });
+
+    picksSnapshot.docs.forEach((pickDocument) => {
+      const pick = pickDocument.data();
+      const previousWins = pick.outcome === "won" ? 1 : 0;
+      const previousLosses = pick.outcome === "lost" ? 1 : 0;
+      const previousTokens = Number(pick.rewardTokens || 0);
+
+      batch.set(
+        doc(db, "leagueScores", scoreDocumentId(leagueId, pick.userId)),
+        {
+          leagueId,
+          userId: pick.userId,
+          userEmail: pick.userEmail,
+          wins: increment(-previousWins),
+          losses: increment(-previousLosses),
+          tokens: increment(-previousTokens),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      batch.update(pickDocument.ref, {
+        outcome: result === "no result" ? "no result" : "open",
+        rewardTokens: 0,
+        winningOption: null,
+        settledAt: result === "no result" ? serverTimestamp() : null,
+      });
+    });
+
+    await batch.commit();
+    return;
+  }
+
   await updateDoc(matchReference, {
     result,
-    winningOption: result === "no result" ? null : result,
+    winningOption: result,
   });
 
-  if (result && result !== "no result" && !matchData.rewardsCalculated) {
-    await finalizeLeagueMatch({
-      leagueId,
-      matchId,
-      winningOption: result,
-    });
-  }
+  await finalizeLeagueMatch({
+    leagueId,
+    matchId,
+    winningOption: result,
+  });
 }
 
 export async function getLeagueRole({ leagueId, userId }) {
