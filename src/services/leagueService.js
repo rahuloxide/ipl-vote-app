@@ -24,8 +24,7 @@ const leagueRequestsCollection = collection(db, "leagueRequests");
 const matchesCollection = collection(db, "matches");
 const picksCollection = collection(db, "picks");
 const leagueScoresCollection = collection(db, "leagueScores");
-const SEASON_ENTRY_FEE = 40;
-const TOTAL_SEASON_MATCH_UNITS = 74;
+const BUY_IN_TOKENS = 40;
 
 function normalizeEmail(email) {
   return email.trim().toLowerCase();
@@ -84,7 +83,9 @@ export async function createLeague({ name, user }) {
     leagueId: leagueReference.id,
     userId: user.uid,
     userEmail: user.email,
-    totalPoints: 0,
+    wins: 0,
+    losses: 0,
+    tokens: 0,
     updatedAt: serverTimestamp(),
   });
 
@@ -117,7 +118,9 @@ export async function ensureDefaultAdminLeague(user) {
     leagueId: leagueReference.id,
     userId: user.uid,
     userEmail: user.email,
-    totalPoints: 0,
+    wins: 0,
+    losses: 0,
+    tokens: 0,
     updatedAt: serverTimestamp(),
   });
 
@@ -337,7 +340,9 @@ export async function approveLeagueRequest({ leagueId, requestId, userId, userEm
       leagueId,
       userId,
       userEmail,
-      totalPoints: 0,
+      wins: 0,
+      losses: 0,
+      tokens: 0,
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -380,7 +385,6 @@ export async function createLeagueMatch({
   leagueId,
   matchName,
   dateTime,
-  points,
   option1,
   option2,
   userId,
@@ -392,13 +396,13 @@ export async function createLeagueMatch({
     matchName: matchName.trim(),
     dateTime: dateTime.trim(),
     deadlineEpochMs,
-    points: Number(points),
     option1: option1.trim(),
     option2: option2.trim(),
     teamA: option1.trim(),
     teamB: option2.trim(),
     kickoff: dateTime.trim(),
     venue: "",
+    rewardsCalculated: false,
     createdByUid: userId,
     createdAt: serverTimestamp(),
   });
@@ -420,13 +424,13 @@ export async function createLeagueMatchesBulk({ leagueId, matches, userId }) {
       matchName: match.matchName.trim(),
       dateTime: match.dateTime.trim(),
       deadlineEpochMs,
-      points: Number(match.points),
       option1: match.option1.trim(),
       option2: match.option2.trim(),
       teamA: match.option1.trim(),
       teamB: match.option2.trim(),
       kickoff: match.dateTime.trim(),
       venue: "",
+      rewardsCalculated: false,
       createdByUid: userId,
       createdAt: serverTimestamp(),
     });
@@ -439,7 +443,6 @@ export async function updateLeagueMatch({
   matchId,
   matchName,
   dateTime,
-  points,
   option1,
   option2,
 }) {
@@ -449,7 +452,6 @@ export async function updateLeagueMatch({
     matchName: matchName.trim(),
     dateTime: dateTime.trim(),
     deadlineEpochMs,
-    points: Number(points),
     option1: option1.trim(),
     option2: option2.trim(),
     teamA: option1.trim(),
@@ -529,9 +531,14 @@ export function subscribeToLeagueScores(leagueId, onData, onError) {
           ...item.data(),
         }))
         .sort((left, right) => {
-          const pointDiff = (right.totalPoints || 0) - (left.totalPoints || 0);
-          if (pointDiff !== 0) {
-            return pointDiff;
+          const tokenDiff = (right.tokens || 0) - (left.tokens || 0);
+          if (tokenDiff !== 0) {
+            return tokenDiff;
+          }
+
+          const winDiff = (right.wins || 0) - (left.wins || 0);
+          if (winDiff !== 0) {
+            return winDiff;
           }
 
           return (left.userEmail || "").localeCompare(right.userEmail || "");
@@ -577,6 +584,10 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
   }
 
   const matchData = matchSnapshot.data();
+  if (matchData.rewardsCalculated) {
+    throw new Error("Rewards have already been calculated for this match.");
+  }
+
   const option1 = matchData.option1 || matchData.teamA;
   const option2 = matchData.option2 || matchData.teamB;
 
@@ -601,44 +612,27 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
     .sort((left, right) => (left.userId || "").localeCompare(right.userId || ""));
 
   const winners = picks.filter((pick) => pick.selectedTeam === winningOption);
-  const losers = picks.filter((pick) => pick.selectedTeam !== winningOption);
-  const matchUnits = Math.max(Number(matchData.points || 1), 1);
-  const stakePerPlayerCents = Math.round((SEASON_ENTRY_FEE / TOTAL_SEASON_MATCH_UNITS) * 100 * matchUnits);
-
-  const deltasByPickId = new Map();
-
-  if (winners.length && losers.length) {
-    const winnerPool = losers.length * stakePerPlayerCents;
-    const baseWinnerShare = Math.floor(winnerPool / winners.length);
-    let remainder = winnerPool - baseWinnerShare * winners.length;
-
-    winners.forEach((pick) => {
-      const extraCent = remainder > 0 ? 1 : 0;
-      deltasByPickId.set(pick.id, (baseWinnerShare + extraCent) / 100);
-      remainder -= extraCent;
-    });
-
-    losers.forEach((pick) => {
-      deltasByPickId.set(pick.id, -stakePerPlayerCents / 100);
-    });
-  } else {
-    picks.forEach((pick) => {
-      deltasByPickId.set(pick.id, 0);
-    });
-  }
+  const leagueSnapshot = await getDoc(doc(db, "leagues", leagueId));
+  const leagueData = leagueSnapshot.exists() ? leagueSnapshot.data() : null;
+  const totalPlayers = Math.max(leagueData?.members?.length || 0, 1);
+  const matchesSnapshot = await getDocs(query(matchesCollection, where("leagueId", "==", leagueId)));
+  const totalMatches = Math.max(matchesSnapshot.size, 1);
+  const totalLeagueTokens = totalPlayers * BUY_IN_TOKENS;
+  const tokensPerMatch = totalLeagueTokens / totalMatches;
+  const tokensPerWinner = winners.length > 0 ? tokensPerMatch / winners.length : 0;
 
   const batch = writeBatch(db);
 
   batch.update(matchReference, {
     winningOption,
+    rewardsCalculated: true,
     settledAt: serverTimestamp(),
   });
 
   picks.forEach((pick) => {
-    const previousDelta = Number(pick.scoreDelta || 0);
-    const nextDelta = deltasByPickId.get(pick.id) || 0;
-    const scoreAdjustment = nextDelta - previousDelta;
-    const outcome = pick.selectedTeam === winningOption ? "won" : "lost";
+    const isWinner = pick.selectedTeam === winningOption;
+    const outcome = isWinner ? "won" : "lost";
+    const rewardTokens = isWinner ? tokensPerWinner : 0;
 
     batch.set(
       doc(db, "leagueScores", scoreDocumentId(leagueId, pick.userId)),
@@ -646,15 +640,17 @@ export async function finalizeLeagueMatch({ leagueId, matchId, winningOption }) 
         leagueId,
         userId: pick.userId,
         userEmail: pick.userEmail,
-        totalPoints: increment(scoreAdjustment),
+        wins: increment(isWinner ? 1 : 0),
+        losses: increment(isWinner ? 0 : 1),
+        tokens: increment(rewardTokens),
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
 
     batch.update(pick.ref, {
-      scoreDelta: nextDelta,
       outcome,
+      rewardTokens,
       winningOption,
       settledAt: serverTimestamp(),
     });

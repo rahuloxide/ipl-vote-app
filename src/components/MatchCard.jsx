@@ -4,7 +4,6 @@ function MatchCard({ match, selectedTeam, onPick, isSaving }) {
   const teamOptions = [option1, option2];
   const matchTitle = match.matchName || `${option1} vs ${option2}`;
   const dateTime = match.dateTime || match.kickoff;
-  const points = match.points ?? null;
   const isSettled = Boolean(match.winningOption);
   const deadlineEpochMs = Number(match.deadlineEpochMs);
   const hasValidDeadline = Number.isFinite(deadlineEpochMs) && deadlineEpochMs > 0;
@@ -15,7 +14,6 @@ function MatchCard({ match, selectedTeam, onPick, isSaving }) {
     <article className="match-card">
       <div className="match-topline">
         <span className="match-badge">{dateTime}</span>
-        <span className="match-meta">{points !== null ? `${points} pts` : ""}</span>
       </div>
 
       <h3>{matchTitle}</h3>

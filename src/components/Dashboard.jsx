@@ -18,7 +18,7 @@ import {
   subscribeToUserLeagues,
 } from "../services/leagueService";
 
-function formatPoints(value) {
+function formatTokens(value) {
   return Number(value || 0).toFixed(2);
 }
 
@@ -223,7 +223,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
         return {
           userId: member.userId,
           userEmail: member.userEmail,
-          points: Number(scoreLookup[member.userId]?.totalPoints || 0),
+          tokens: Number(scoreLookup[member.userId]?.tokens || 0),
           wins,
           losses,
           missed,
@@ -232,8 +232,8 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
         };
       })
       .sort((left, right) => {
-        if (right.points !== left.points) {
-          return right.points - left.points;
+        if (right.tokens !== left.tokens) {
+          return right.tokens - left.tokens;
         }
 
         if (right.wins !== left.wins) {
@@ -387,7 +387,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
                     <h2>{selectedLeague?.name || "League standings"}</h2>
                   </div>
                   <p className="section-copy">
-                    Track how the full league is doing so far, including points, wins, losses, missed picks, and hit rate.
+                    Track how the full league is doing so far, including tokens, wins, losses, missed picks, and hit rate.
                   </p>
                 </div>
 
@@ -396,7 +396,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
                     <thead>
                       <tr>
                         <th>User</th>
-                        <th>Points</th>
+                        <th>Tokens</th>
                         <th>Wins</th>
                         <th>Losses</th>
                         <th>Missed</th>
@@ -412,7 +412,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
                             className={index === 0 ? "performance-row leader-row" : "performance-row"}
                           >
                             <td>{row.userEmail}</td>
-                            <td>{formatPoints(row.points)}</td>
+                            <td>{formatTokens(row.tokens)}</td>
                             <td>{row.wins}</td>
                             <td>{row.losses}</td>
                             <td>{row.missed}</td>

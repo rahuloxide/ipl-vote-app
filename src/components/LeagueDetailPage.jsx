@@ -37,13 +37,8 @@ function formatDateTime(dateTime) {
   });
 }
 
-function formatMoney(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(Number(value || 0));
+function formatTokens(value) {
+  return Number(value || 0).toFixed(2);
 }
 
 function toDateTimeInputValue(dateTime) {
@@ -112,7 +107,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
   const [formValues, setFormValues] = useState({
     matchName: "",
     dateTime: "",
-    points: "",
     option1: "",
     option2: "",
   });
@@ -217,7 +211,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           matchId: editingMatchId,
           matchName: formValues.matchName,
           dateTime: normalizedDateTime,
-          points: formValues.points,
           option1: formValues.option1,
           option2: formValues.option2,
         });
@@ -226,7 +219,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           leagueId,
           matchName: formValues.matchName,
           dateTime: normalizedDateTime,
-          points: formValues.points,
           option1: formValues.option1,
           option2: formValues.option2,
           userId: user.uid,
@@ -236,7 +228,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
       setFormValues({
         matchName: "",
         dateTime: "",
-        points: "",
         option1: "",
         option2: "",
       });
@@ -274,7 +265,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
       const headerIndex = {
         matchName: headers.indexOf("match name"),
         dateTime: headers.indexOf("datetime"),
-        points: headers.indexOf("points"),
         option1: headers.indexOf("option1"),
         option2: headers.indexOf("option2"),
       };
@@ -282,7 +272,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
       const missingHeader = Object.values(headerIndex).some((value) => value === -1);
 
       if (missingHeader) {
-        throw new Error("CSV headers must be: Match Name, DateTime, Points, Option1, Option2.");
+        throw new Error("CSV headers must be: Match Name, DateTime, Option1, Option2.");
       }
 
       const parsedMatches = rows.slice(1).map((line, index) => {
@@ -290,7 +280,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         const match = {
           matchName: values[headerIndex.matchName] || "",
           dateTime: normalizeDateTimeValue(values[headerIndex.dateTime] || ""),
-          points: values[headerIndex.points] || "",
           option1: values[headerIndex.option1] || "",
           option2: values[headerIndex.option2] || "",
         };
@@ -382,7 +371,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
     setFormValues({
       matchName: match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`,
       dateTime: toDateTimeInputValue(match.dateTime || match.kickoff || ""),
-      points: String(match.points ?? ""),
       option1: match.option1 || match.teamA || "",
       option2: match.option2 || match.teamB || "",
     });
@@ -452,7 +440,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           userEmail: pick.userEmail,
           selectedTeam: pick.selectedTeam,
           outcome: pick.outcome || (match?.winningOption ? "pending settlement" : "open"),
-          scoreDelta: pick.scoreDelta ?? 0,
+          rewardTokens: pick.rewardTokens ?? 0,
         };
       })
       .sort((left, right) => {
@@ -526,7 +514,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
               <tr>
                 <th>Match Name</th>
                 <th>DateTime</th>
-                <th>Points</th>
                 <th>Option1</th>
                 <th>Option2</th>
                 <th>Manage Options</th>
@@ -538,7 +525,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                   <tr key={match.id}>
                     <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
                     <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
-                    <td>{match.points ?? "-"}</td>
                     <td>{match.option1 || match.teamA || "-"}</td>
                     <td>{match.option2 || match.teamB || "-"}</td>
                     <td>
@@ -559,7 +545,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No matches added yet.</td>
+                  <td colSpan="5">No matches added yet.</td>
                 </tr>
               )}
             </tbody>
@@ -584,13 +570,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
           </div>
 
           <div className="two-column-grid">
-            <input
-              className="text-input"
-              type="number"
-              value={formValues.points}
-              onChange={(event) => updateField("points", event.target.value)}
-              placeholder="Points"
-            />
             <input
               className="text-input"
               type="text"
@@ -624,7 +603,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                   setFormValues({
                     matchName: "",
                     dateTime: "",
-                    points: "",
                     option1: "",
                     option2: "",
                   });
@@ -640,7 +618,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         <div className="csv-upload-card">
           <p className="section-label">Bulk upload</p>
           <p className="section-copy">
-            Upload a CSV with columns: Match Name, DateTime, Points, Option1, Option2.
+            Upload a CSV with columns: Match Name, DateTime, Option1, Option2.
           </p>
           <input
             className="text-input"
@@ -686,7 +664,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
               <tr>
                 <th>Match Name</th>
                 <th>DateTime</th>
-                <th>Points</th>
                 <th>Option1</th>
                 <th>Option2</th>
                 <th>Result</th>
@@ -698,7 +675,6 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                   <tr key={match.id}>
                     <td>{match.matchName || `${match.option1 || match.teamA} vs ${match.option2 || match.teamB}`}</td>
                     <td>{formatDateTime(match.dateTime || match.kickoff || "")}</td>
-                    <td>{match.points ?? "-"}</td>
                     <td>{match.option1 || match.teamA || "-"}</td>
                     <td>{match.option2 || match.teamB || "-"}</td>
                     <td>
@@ -706,14 +682,14 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                         <button
                           className="link-button"
                           onClick={() => handleMarkWinner(match, match.option1 || match.teamA)}
-                          disabled={isSaving}
+                          disabled={isSaving || match.rewardsCalculated}
                         >
                           Won: {match.option1 || match.teamA}
                         </button>
                         <button
                           className="link-button"
                           onClick={() => handleMarkWinner(match, match.option2 || match.teamB)}
-                          disabled={isSaving}
+                          disabled={isSaving || match.rewardsCalculated}
                         >
                           Won: {match.option2 || match.teamB}
                         </button>
@@ -728,7 +704,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6">No matches added yet.</td>
+                  <td colSpan="5">No matches added yet.</td>
                 </tr>
               )}
             </tbody>
@@ -739,11 +715,11 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
       <section className="admin-card">
         <div className="section-heading">
           <div>
-            <p className="section-label">Scores</p>
+            <p className="section-label">Rewards</p>
             <h2>{league.name}</h2>
           </div>
           <p className="section-copy">
-            Each player risks a share of the $40 season fee across 74 match units. Losers fund the winners, and no-vote players stay at $0.00 for that match.
+            League totals track wins, losses, and tokens earned so far.
           </p>
         </div>
 
@@ -752,7 +728,9 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
             <thead>
               <tr>
                 <th>User</th>
-                <th>Total Balance</th>
+                <th>Wins</th>
+                <th>Losses</th>
+                <th>Tokens</th>
               </tr>
             </thead>
             <tbody>
@@ -760,12 +738,14 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 scores.map((score) => (
                   <tr key={score.id}>
                     <td>{score.userEmail}</td>
-                    <td>{formatMoney(score.totalPoints ?? 0)}</td>
+                    <td>{score.wins ?? 0}</td>
+                    <td>{score.losses ?? 0}</td>
+                    <td>{formatTokens(score.tokens ?? 0)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="2">No scores yet.</td>
+                  <td colSpan="4">No rewards yet.</td>
                 </tr>
               )}
             </tbody>
@@ -779,7 +759,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
             <p className="section-label">Votes</p>
             <h2>{league.name}</h2>
           </div>
-          <p className="section-copy">Track every player vote and the score impact after settlement.</p>
+          <p className="section-copy">Track every player vote and the reward outcome after settlement.</p>
         </div>
 
         <div className="table-wrapper">
@@ -790,7 +770,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                 <th>User</th>
                 <th>Pick</th>
                 <th>Outcome</th>
-                <th>Payout</th>
+                <th>Tokens</th>
               </tr>
             </thead>
             <tbody>
@@ -801,7 +781,7 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                     <td>{row.userEmail}</td>
                     <td>{row.selectedTeam}</td>
                     <td>{row.outcome}</td>
-                    <td>{formatMoney(row.scoreDelta)}</td>
+                    <td>{formatTokens(row.rewardTokens)}</td>
                   </tr>
                 ))
               ) : (
