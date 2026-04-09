@@ -545,31 +545,33 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         </div>
 
         <div className="table-wrapper">
-          <table className="simple-table">
-            <thead>
-              <tr>
-                <th>Match Name</th>
-                <th>DateTime</th>
-                <th className="choice-header" aria-label="Option 1"></th>
-                <th className="choice-header" aria-label="Option 2"></th>
-                <th className="choice-header" aria-label="To be decided"></th>
-                <th className="choice-header" aria-label="No result"></th>
-                <th>Manage Options</th>
-              </tr>
-            </thead>
-            <tbody>
-                {matches.length ? (
-                  matches.map((match) => {
+            <table className="simple-table matches-table">
+             <thead>
+               <tr>
+                  <th>#</th>
+                  <th>Match Name</th>
+                  <th>DateTime</th>
+                  <th className="choice-header" aria-label="Option 1"></th>
+                  <th className="choice-header" aria-label="Option 2"></th>
+                  <th className="choice-header" aria-label="To be decided"></th>
+                  <th className="choice-header" aria-label="No result"></th>
+                  <th className="choice-header" aria-label="Actions"></th>
+                </tr>
+              </thead>
+              <tbody>
+                  {matches.length ? (
+                  matches.map((match, index) => {
                     const option1 = match.option1 || match.teamA || "-";
                     const option2 = match.option2 || match.teamB || "-";
                     const isCompleted = isMatchCompleted(match);
                     const isEditingRow = editingMatchId === match.id;
 
                     return (
-                  <tr
-                    key={match.id}
-                    className={isCompleted ? "completed-match-row" : ""}
-                  >
+                    <tr
+                      key={match.id}
+                      className={isCompleted ? "completed-match-row" : ""}
+                    >
+                    <td className="match-number-cell">{index + 1}</td>
                     <td>
                       {isEditingRow ? (
                         <input
@@ -633,32 +635,24 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                       )}
                     </td>
                     <td>
-                      {isEditingRow ? (
-                        null
-                      ) : (
-                        <button
-                          className={`secondary-button table-choice-button ${match.result == null ? "active" : ""}`}
-                          type="button"
-                          onClick={() => handleSaveResult(match, null)}
-                          disabled={isSaving}
-                        >
-                          TBD
-                        </button>
-                      )}
+                      <button
+                        className={`secondary-button table-choice-button ${match.result == null ? "active" : ""}`}
+                        type="button"
+                        onClick={() => handleSaveResult(match, null)}
+                        disabled={isSaving}
+                      >
+                        TBD
+                      </button>
                     </td>
                     <td>
-                      {isEditingRow ? (
-                        null
-                      ) : (
-                        <button
-                          className={`secondary-button result-reset-button ${match.result === "no result" ? "active" : ""}`}
-                          type="button"
-                          onClick={() => handleSaveResult(match, "no result")}
-                          disabled={isSaving}
-                        >
-                          No Result
-                        </button>
-                      )}
+                      <button
+                        className={`secondary-button result-reset-button ${match.result === "no result" ? "active" : ""}`}
+                        type="button"
+                        onClick={() => handleSaveResult(match, "no result")}
+                        disabled={isSaving}
+                      >
+                        No Result
+                      </button>
                     </td>
                     <td>
                       <div className="row-actions">
@@ -713,11 +707,11 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
                   </tr>
                 );
                 })
-              ) : (
-                <tr>
-                  <td colSpan="6">No matches added yet.</td>
-                </tr>
-              )}
+                ) : (
+                  <tr>
+                  <td colSpan="8">No matches added yet.</td>
+                  </tr>
+                )}
             </tbody>
           </table>
         </div>

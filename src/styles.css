@@ -491,9 +491,10 @@ button {
 }
 
 .compact-input {
-  min-width: 140px;
-  min-height: 34px;
-  padding: 7px 10px;
+  width: 100%;
+  min-width: 120px;
+  min-height: 32px;
+  padding: 6px 9px;
 }
 
 .text-input:focus,
@@ -611,6 +612,10 @@ button {
   table-layout: auto;
 }
 
+.matches-table {
+  table-layout: fixed;
+}
+
 .simple-table th,
 .simple-table td {
   text-align: left;
@@ -627,10 +632,48 @@ button {
 }
 
 .choice-header {
-  width: 1%;
+  width: 88px;
   color: transparent;
   padding-top: 0;
   padding-bottom: 0;
+}
+
+.match-number-cell {
+  color: #64748b;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.matches-table th:nth-child(1),
+.matches-table td:nth-child(1) {
+  width: 48px;
+}
+
+.matches-table th:nth-child(2),
+.matches-table td:nth-child(2) {
+  width: 15%;
+}
+
+.matches-table th:nth-child(3),
+.matches-table td:nth-child(3) {
+  width: 15%;
+}
+
+.matches-table th:nth-child(4),
+.matches-table th:nth-child(5),
+.matches-table th:nth-child(6),
+.matches-table th:nth-child(7),
+.matches-table td:nth-child(4),
+.matches-table td:nth-child(5),
+.matches-table td:nth-child(6),
+.matches-table td:nth-child(7) {
+  text-align: center;
+}
+
+.matches-table th:nth-child(8),
+.matches-table td:nth-child(8) {
+  width: 120px;
+  text-align: center;
 }
 
 .simple-table tbody tr:last-child td {
@@ -688,19 +731,25 @@ button {
 }
 
 .table-pick-button {
-  min-height: 34px;
-  padding: 7px 10px;
+  width: auto;
+  min-width: 74px;
+  justify-self: center;
+  min-height: 32px;
+  padding: 6px 9px;
   border-radius: 10px;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   line-height: 1.1;
   box-shadow: none;
 }
 
 .table-choice-button {
-  min-height: 34px;
-  padding: 7px 10px;
+  width: auto;
+  min-width: 74px;
+  justify-self: center;
+  min-height: 32px;
+  padding: 6px 9px;
   border-radius: 10px;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   background: #eef2f7;
 }
 
@@ -713,6 +762,10 @@ button {
   color: #64748b;
   font-size: 0.8rem;
   font-weight: 700;
+}
+
+.simple-table td .row-actions {
+  justify-content: center;
 }
 
 .result-reset-button {
@@ -744,7 +797,7 @@ button {
 
 .row-actions {
   display: flex;
-  gap: 6px;
+  gap: 12px;
   align-items: center;
   flex-wrap: wrap;
 }
