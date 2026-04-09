@@ -717,66 +717,43 @@ function LeagueDetailPage({ leagueId, user, activeTab = "management" }) {
         </div>
 
         {!editingMatchId ? (
-        <form className="stack-form" onSubmit={handleMatchSubmit}>
-          <div className="two-column-grid">
+        <form className="match-create-row" onSubmit={handleMatchSubmit}>
+          <div className="match-create-grid">
+            <span className="match-create-number">New</span>
             <input
-              className="text-input"
+              className="text-input compact-input"
               type="text"
               value={formValues.matchName}
               onChange={(event) => updateField("matchName", event.target.value)}
               placeholder="Match Name"
             />
             <input
-              className="text-input"
+              className="text-input compact-input"
               type="datetime-local"
               value={formValues.dateTime}
               onChange={(event) => updateField("dateTime", event.target.value)}
             />
-          </div>
-
-          <div className="two-column-grid">
             <input
-              className="text-input"
+              className="text-input compact-input"
               type="text"
               value={formValues.option1}
               onChange={(event) => updateField("option1", event.target.value)}
               placeholder="Option1"
             />
-          </div>
-
-          <div className="two-column-grid">
             <input
-              className="text-input"
+              className="text-input compact-input"
               type="text"
               value={formValues.option2}
               onChange={(event) => updateField("option2", event.target.value)}
               placeholder="Option2"
             />
-          </div>
-
-          <div className="row-actions">
-            <button className="primary-button" type="submit" disabled={isSaving}>
-              {isSaving ? "Saving..." : editingMatchId ? "Update match" : "Add match"}
-            </button>
-
-            {editingMatchId ? (
-              <button
-                className="secondary-button"
-                type="button"
-                onClick={() => {
-                  setEditingMatchId("");
-                  setFormValues({
-                    matchName: "",
-                    dateTime: "",
-                    option1: "",
-                    option2: "",
-                  });
-                }}
-                disabled={isSaving}
-              >
-                Cancel edit
+            <span className="match-create-placeholder">TBD</span>
+            <span className="match-create-placeholder">No Result</span>
+            <div className="row-actions match-create-actions">
+              <button className="primary-button" type="submit" disabled={isSaving}>
+                {isSaving ? "Saving..." : "Add"}
               </button>
-            ) : null}
+            </div>
           </div>
         </form>
         ) : null}

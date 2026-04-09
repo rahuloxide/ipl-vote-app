@@ -603,6 +603,14 @@ button {
   margin-bottom: 12px;
 }
 
+.home-section-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
 .simple-table {
   width: 100%;
   border-collapse: collapse;
@@ -674,6 +682,45 @@ button {
 .matches-table td:nth-child(8) {
   width: 120px;
   text-align: center;
+}
+
+.match-create-row {
+  margin-top: 10px;
+}
+
+.match-create-grid {
+  display: grid;
+  grid-template-columns: 48px 15% 15% 88px 88px 88px 88px 120px;
+  gap: 10px;
+  align-items: center;
+}
+
+.match-create-number {
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.match-create-placeholder {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.match-create-actions {
+  justify-content: center;
+}
+
+.match-create-actions .primary-button {
+  min-height: 32px;
+  padding: 6px 12px;
 }
 
 .simple-table tbody tr:last-child td {
@@ -963,6 +1010,14 @@ button {
   .two-column-grid,
   .section-heading,
   .match-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .home-section-actions {
+    justify-content: flex-start;
+  }
+
+  .match-create-grid {
     grid-template-columns: 1fr;
   }
 

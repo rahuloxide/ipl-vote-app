@@ -9,9 +9,7 @@ import {
   requestToJoinLeague,
   saveLeaguePick,
   subscribeToAllLeagues,
-  subscribeToAllLeaguePicks,
   subscribeToLeagueMatches,
-  subscribeToLeagueMembers,
   subscribeToLeaguePicks,
   subscribeToLeagueScores,
   subscribeToUserLeagueRequests,
@@ -32,9 +30,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
   const [leagueRequests, setLeagueRequests] = useState([]);
   const [selectedLeagueRole, setSelectedLeagueRole] = useState(null);
   const [matches, setMatches] = useState([]);
-  const [members, setMembers] = useState([]);
   const [picks, setPicks] = useState({});
-  const [allLeaguePicks, setAllLeaguePicks] = useState([]);
   const [leagueScores, setLeagueScores] = useState([]);
 
   useEffect(() => {
@@ -79,9 +75,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
   useEffect(() => {
     if (!selectedLeagueId) {
       setMatches([]);
-      setMembers([]);
       setPicks({});
-      setAllLeaguePicks([]);
       setLeagueScores([]);
       setSelectedLeagueRole(null);
       return;
@@ -97,16 +91,6 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       }
     );
 
-    const unsubscribeMembers = subscribeToLeagueMembers(
-      selectedLeagueId,
-      (nextMembers) => {
-        setMembers(nextMembers);
-      },
-      (error) => {
-        setErrorMessage(error.message || "Unable to load league members.");
-      }
-    );
-
     const unsubscribePicks = subscribeToLeaguePicks(
       { leagueId: selectedLeagueId, userId: user.uid },
       (nextPicks) => {
@@ -114,16 +98,6 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       },
       (error) => {
         setErrorMessage(error.message || "Unable to load your picks.");
-      }
-    );
-
-    const unsubscribeAllLeaguePicks = subscribeToAllLeaguePicks(
-      selectedLeagueId,
-      (nextPicks) => {
-        setAllLeaguePicks(nextPicks);
-      },
-      (error) => {
-        setErrorMessage(error.message || "Unable to load league performance.");
       }
     );
 
@@ -147,9 +121,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
 
     return () => {
       unsubscribeMatches();
-      unsubscribeMembers();
       unsubscribePicks();
-      unsubscribeAllLeaguePicks();
       unsubscribeLeagueScores();
     };
   }, [selectedLeagueId, user.uid]);
@@ -188,34 +160,19 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       });
     }
 
-    members.forEach((member) => {
-      roster.set(member.userId, {
-        userId: member.userId,
-        userEmail: member.userEmail,
-        role: member.role,
+    leagueScores.forEach((score) => {
+      roster.set(score.userId, {
+        userId: score.userId,
+        userEmail: score.userEmail,
       });
     });
 
-    const scoreLookup = leagueScores.reduce((accumulator, score) => {
-      accumulator[score.userId] = score;
-      return accumulator;
-    }, {});
-
-    const picksByUser = allLeaguePicks.reduce((accumulator, pick) => {
-      if (!accumulator[pick.userId]) {
-        accumulator[pick.userId] = [];
-      }
-
-      accumulator[pick.userId].push(pick);
-      return accumulator;
-    }, {});
-
     return Array.from(roster.values())
       .map((member) => {
-        const userPicks = picksByUser[member.userId] || [];
-        const wins = userPicks.filter((pick) => pick.outcome === "won").length;
-        const losses = userPicks.filter((pick) => pick.outcome === "lost").length;
-        const totalPicks = userPicks.length;
+        const score = leagueScores.find((item) => item.userId === member.userId) || {};
+        const wins = Number(score.wins || 0);
+        const losses = Number(score.losses || 0);
+        const totalPicks = wins + losses;
         const missed = Math.max(matches.length - totalPicks, 0);
         const settledPicks = wins + losses;
         const accuracy = settledPicks ? Math.round((wins / settledPicks) * 100) : 0;
@@ -223,7 +180,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
         return {
           userId: member.userId,
           userEmail: member.userEmail,
-          tokens: Number(scoreLookup[member.userId]?.tokens || 0),
+          tokens: Number(score.tokens || 0),
           wins,
           losses,
           missed,
@@ -242,7 +199,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
 
         return left.userEmail.localeCompare(right.userEmail);
       });
-  }, [allLeaguePicks, leagueScores, matches.length, members, selectedLeague]);
+  }, [leagueScores, matches.length, selectedLeague]);
 
   const handleRequestJoin = async (leagueId) => {
     setErrorMessage("");
@@ -311,7 +268,7 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
             </div>
             <div>
               <p className="summary-label">League members</p>
-              <p className="summary-value">{selectedLeague ? members.length + 1 : 0}</p>
+              <p className="summary-value">{selectedLeague?.members?.length || 0}</p>
             </div>
           </div>
 
@@ -336,35 +293,22 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
       ) : (
         <>
           <section className="matches-section">
-            <div className="tab-row home-content-tabs" role="tablist" aria-label="Home league views">
-              <button
-                className={`nav-link ${activeTab === "picks" ? "active" : ""}`}
-                type="button"
-                onClick={() => setActiveTab("picks")}
-              >
-                Picks
-              </button>
-              <button
-                className={`nav-link ${activeTab === "performance" ? "active" : ""}`}
-                type="button"
-                onClick={() => setActiveTab("performance")}
-              >
-                Performance
-              </button>
-            </div>
-
             {activeTab === "picks" ? (
               <>
             <div className="section-heading">
               <div>
-                <p className="section-label">Match picks</p>
                 <h2>{selectedLeague?.name || "League matches"}</h2>
               </div>
-              <p className="section-copy">
-                {matches.length
-                  ? "Choose one winner per match. Your picks save instantly."
-                  : "No matches yet. The admin can add the first fixture from the Admin page."}
-              </p>
+              <div className="home-section-actions">
+                <p className="section-copy">
+                  {matches.length
+                    ? "Choose one winner per match. Your picks save instantly."
+                    : "No matches yet. The admin can add the first fixture from the Admin page."}
+                </p>
+                <button className="secondary-button" type="button" onClick={() => setActiveTab("performance")}>
+                  Performance
+                </button>
+              </div>
             </div>
 
             <div className="match-grid">
@@ -383,12 +327,16 @@ function Dashboard({ user, currentUserRole, selectedLeagueId }) {
               <>
                 <div className="section-heading">
                   <div>
-                    <p className="section-label">League performance</p>
                     <h2>{selectedLeague?.name || "League standings"}</h2>
                   </div>
-                  <p className="section-copy">
-                    Track how the full league is doing so far, including tokens, wins, losses, missed picks, and hit rate.
-                  </p>
+                  <div className="home-section-actions">
+                    <p className="section-copy">
+                      Track how the full league is doing so far, including tokens, wins, losses, missed picks, and hit rate.
+                    </p>
+                    <button className="secondary-button" type="button" onClick={() => setActiveTab("picks")}>
+                      Back to Voting
+                    </button>
+                  </div>
                 </div>
 
                 <div className="table-wrapper performance-table-wrapper">
